@@ -1,19 +1,193 @@
 const STORAGE_KEY = "cww.docs.v4";
+const THEME_KEY = "cww.theme.v1";
+const TRASH_KEY = "cww.trash.v1";
+const PINNED_DOCS_KEY = "cww.pinnedDocs.v1";
 const LAST_DOC_KEY = "cww.lastDoc.v4";
 const TRANSLATION_KEY = "cww.translation.v1";
 const CUSTOM_TEMPLATES_KEY = "cww.customTemplates.v1";
 const FLOW_STEP_KEY = "cww.flowStep.v1";
+const RECENT_VERSES_KEY = "cww.recentVerses.v1";
+const ANALYTICS_KEY = "cww.analytics.v1";
 const FLOW_STEPS = ["read", "reflect", "write", "encourage"];
 const AUTOSAVE_DELAY_MS = 1800;
 
-const LABEL_COLORS = [
-  "linear-gradient(90deg, #8a7e5e, #a09676)",
-  "linear-gradient(90deg, #7d8a6a, #97a084)",
-  "linear-gradient(90deg, #7a8265, #949d82)",
-  "linear-gradient(90deg, #8a8060, #a49a7a)",
-  "linear-gradient(90deg, #6b7a6a, #8a9a84)",
-  "linear-gradient(90deg, #8a7060, #a09080)"
-];
+const THEME_PRESETS = {
+  light: {
+    vars: {
+      "--bg": "#eef2f3",
+      "--card": "#ffffff",
+      "--card-2": "#fbfbfb",
+      "--line": "#e4e6e7",
+      "--line-soft": "#eceff0",
+      "--ink": "#2b2b2b",
+      "--muted": "#6b6b6b",
+      "--olive": "#5e7263",
+      "--olive-dark": "#4f6255",
+      "--gold": "#a88f63",
+      "--warm-brown": "#7a5a46",
+      "--sage": "#728a79"
+    },
+    bodyBg: "#eef2f3",
+    sectionLabels: [
+      "linear-gradient(to right, #e7ece8 0%, #f2f5f2 100%)",
+      "linear-gradient(to right, #e7efe9 0%, #f2f6f3 100%)",
+      "linear-gradient(to right, #e4ece6 0%, #f1f5f2 100%)",
+      "linear-gradient(to right, #efe8db 0%, #f6f2e9 100%)",
+      "linear-gradient(to right, #dde7e1 0%, #edf2ef 100%)",
+      "linear-gradient(to right, #e7ece8 0%, #f2f5f2 100%)"
+    ]
+  },
+  dark: {
+    vars: {
+      "--bg": "#17191d",
+      "--card": "#252a30",
+      "--card-2": "#f3f4f6",
+      "--line": "#3a424d",
+      "--line-soft": "#4a5562",
+      "--ink": "#101112",
+      "--muted": "#4d5763",
+      "--olive": "#6f8a7a",
+      "--olive-dark": "#5c7567",
+      "--gold": "#b9a06b",
+      "--warm-brown": "#87644f",
+      "--sage": "#6f8776"
+    },
+    bodyBg: "linear-gradient(180deg, #1c2026 0%, #12161b 100%)",
+    sectionLabels: [
+      "linear-gradient(to right, #87644f 0%, #ccb7ab 58%, #f2f3f5 100%)",
+      "linear-gradient(to right, #6f8776 0%, #c9d5ce 58%, #f2f3f5 100%)",
+      "linear-gradient(to right, #6f8a7a 0%, #c8d6ce 58%, #f2f3f5 100%)",
+      "linear-gradient(to right, #b9a06b 0%, #e3d8bf 58%, #f2f3f5 100%)",
+      "linear-gradient(to right, #5c7567 0%, #c1cfc7 58%, #f2f3f5 100%)",
+      "linear-gradient(to right, #87644f 0%, #ccb7ab 58%, #f2f3f5 100%)"
+    ]
+  },
+  sepia: {
+    vars: {
+      "--bg": "#f6f1e8",
+      "--card": "#fffdf8",
+      "--card-2": "#fffefb",
+      "--line": "#e1d7c7",
+      "--line-soft": "#ece3d6",
+      "--ink": "#322b24",
+      "--muted": "#6f6559",
+      "--olive": "#657763",
+      "--olive-dark": "#536250",
+      "--gold": "#ab9061",
+      "--warm-brown": "#7c5f48",
+      "--sage": "#7b8d76"
+    },
+    bodyBg: "#f6f1e8",
+    sectionLabels: [
+      "linear-gradient(to right, #ede2d3 0%, #f8f2e9 100%)",
+      "linear-gradient(to right, #e4ece2 0%, #f0f5ef 100%)",
+      "linear-gradient(to right, #e2ebe0 0%, #eff4ee 100%)",
+      "linear-gradient(to right, #eee1c8 0%, #f7f0e2 100%)",
+      "linear-gradient(to right, #dde6df 0%, #edf2ee 100%)",
+      "linear-gradient(to right, #ede2d3 0%, #f8f2e9 100%)"
+    ]
+  },
+  slate: {
+    vars: {
+      "--bg": "#dfe4ea",
+      "--card": "#43515e",
+      "--card-2": "#f6f8fa",
+      "--line": "#607080",
+      "--line-soft": "#788897",
+      "--ink": "#14181d",
+      "--muted": "#495869",
+      "--olive": "#5e7383",
+      "--olive-dark": "#4d6271",
+      "--gold": "#b39a64",
+      "--warm-brown": "#7b5d4e",
+      "--sage": "#688177"
+    },
+    bodyBg: "linear-gradient(180deg, #e4e8ed 0%, #d6dde5 100%)",
+    sectionLabels: [
+      "linear-gradient(to right, #7b5d4e 0%, #cfbeb4 58%, #f6f8fa 100%)",
+      "linear-gradient(to right, #688177 0%, #ccd8d2 58%, #f6f8fa 100%)",
+      "linear-gradient(to right, #5e7383 0%, #cad4de 58%, #f6f8fa 100%)",
+      "linear-gradient(to right, #b39a64 0%, #e2d6ba 58%, #f6f8fa 100%)",
+      "linear-gradient(to right, #4d6271 0%, #c1ced8 58%, #f6f8fa 100%)",
+      "linear-gradient(to right, #7b5d4e 0%, #cfbeb4 58%, #f6f8fa 100%)"
+    ]
+  },
+  greenwhite: {
+    vars: {
+      "--bg": "#edf3ed",
+      "--card": "#4d644e",
+      "--card-2": "#ffffff",
+      "--line": "#6b876c",
+      "--line-soft": "#84a086",
+      "--ink": "#111611",
+      "--muted": "#3f5140",
+      "--olive": "#5f7a60",
+      "--olive-dark": "#4f6a50",
+      "--gold": "#b79d64",
+      "--warm-brown": "#7a5f4b",
+      "--sage": "#6f8a71"
+    },
+    bodyBg: "linear-gradient(180deg, #edf3ed 0%, #e4ece4 100%)",
+    sectionLabels: [
+      "linear-gradient(to right, #7a5f4b 0%, #cfbeb2 58%, #ffffff 100%)",
+      "linear-gradient(to right, #6f8a71 0%, #d0ddd1 58%, #ffffff 100%)",
+      "linear-gradient(to right, #5f7a60 0%, #c9d8cb 58%, #ffffff 100%)",
+      "linear-gradient(to right, #b79d64 0%, #e3d7bc 58%, #ffffff 100%)",
+      "linear-gradient(to right, #4f6a50 0%, #c3d2c4 58%, #ffffff 100%)",
+      "linear-gradient(to right, #7a5f4b 0%, #cfbeb2 58%, #ffffff 100%)"
+    ]
+  },
+  bluegreen: {
+    vars: {
+      "--bg": "#e7f0f1",
+      "--card": "#3f5f67",
+      "--card-2": "#f9fcfc",
+      "--line": "#5d8087",
+      "--line-soft": "#789aa0",
+      "--ink": "#0f1517",
+      "--muted": "#3f5960",
+      "--olive": "#5f7f76",
+      "--olive-dark": "#4f6c64",
+      "--gold": "#b59b65",
+      "--warm-brown": "#786052",
+      "--sage": "#6f8c83"
+    },
+    bodyBg: "linear-gradient(180deg, #e7f0f1 0%, #dde8ea 100%)",
+    sectionLabels: [
+      "linear-gradient(to right, #786052 0%, #cabfb8 58%, #f9fcfc 100%)",
+      "linear-gradient(to right, #6f8c83 0%, #cedad6 58%, #f9fcfc 100%)",
+      "linear-gradient(to right, #5f7f76 0%, #cadad4 58%, #f9fcfc 100%)",
+      "linear-gradient(to right, #b59b65 0%, #e2d6bc 58%, #f9fcfc 100%)",
+      "linear-gradient(to right, #4f6c64 0%, #c2d2cd 58%, #f9fcfc 100%)",
+      "linear-gradient(to right, #786052 0%, #cabfb8 58%, #f9fcfc 100%)"
+    ]
+  },
+  skyblue: {
+    vars: {
+      "--bg": "#dff1ff",
+      "--card": "#4f78a3",
+      "--card-2": "#f8fcff",
+      "--line": "#79a2c9",
+      "--line-soft": "#9cc0de",
+      "--ink": "#0f1a24",
+      "--muted": "#39546b",
+      "--olive": "#6b8fb0",
+      "--olive-dark": "#56789a",
+      "--gold": "#bca86b",
+      "--warm-brown": "#7f6652",
+      "--sage": "#7a96aa"
+    },
+    bodyBg: "#dff1ff",
+    sectionLabels: [
+      "linear-gradient(to right, #7f6652 0%, #d1c5bc 58%, #f8fcff 100%)",
+      "linear-gradient(to right, #7a96aa 0%, #cedbe5 58%, #f8fcff 100%)",
+      "linear-gradient(to right, #6b8fb0 0%, #c8d9e8 58%, #f8fcff 100%)",
+      "linear-gradient(to right, #bca86b 0%, #e5dcc2 58%, #f8fcff 100%)",
+      "linear-gradient(to right, #56789a 0%, #c2d3e3 58%, #f8fcff 100%)",
+      "linear-gradient(to right, #7f6652 0%, #d1c5bc 58%, #f8fcff 100%)"
+    ]
+  }
+};
 
 const NEXT_LABELS = {
   read: "Next: Reflect \u2192",
@@ -136,11 +310,15 @@ const state = {
   currentStep: "write",
   lastFocusedBlock: null,
   autoSaveTimer: null,
-  lastSavedAt: ""
+  lastSavedAt: "",
+  docFilter: "",
+  recentVerses: [],
+  sessionStartWords: 0
 };
 
 let resolveTimer = null;
 let verseLookupTimer = null;
+let activeLabelColors = THEME_PRESETS.light.sectionLabels.slice();
 
 const $ = (id) => document.getElementById(id);
 
@@ -148,6 +326,7 @@ const els = {
   docTitle: $("doc-title"),
   translationSelect: $("translation-select"),
   templateSelect: $("template-select"),
+  docSearch: $("doc-search"),
   applyTemplateBtn: $("apply-template-btn"),
   templateApplySecondary: $("template-apply-secondary"),
   templateStudioModal: $("template-studio-modal"),
@@ -155,6 +334,7 @@ const els = {
   closeTemplateStudioBtn: $("close-template-studio-btn"),
   verseQuery: $("verse-query"),
   verseResult: $("verse-result"),
+  recentVersesList: $("recent-verses-list"),
   categorySelect: $("category-select"),
   verseBankList: $("verse-bank-list"),
   promptsList: $("prompts-list"),
@@ -174,7 +354,16 @@ const els = {
   status: $("status"),
   writingStats: $("writing-stats"),
   saveMeta: $("save-meta"),
+  sessionMeta: $("session-meta"),
   importFileInput: $("import-file-input"),
+  shortcutsModal: $("shortcuts-modal"),
+  shortcutsBackdrop: $("shortcuts-backdrop"),
+  closeShortcutsBtn: $("close-shortcuts-btn"),
+  settingsBtn: $("settings-btn"),
+  settingsPanel: $("settings-panel"),
+  settingsBackdrop: $("settings-backdrop"),
+  closeSettingsBtn: $("close-settings-btn"),
+  themeOptions: $("theme-options"),
   savedItemTemplate: $("saved-item-template")
 };
 
@@ -191,6 +380,7 @@ bootstrap();
    ============================================================ */
 
 async function init() {
+  loadPersistedUiState();
   const steps = [
     ["fillTranslations", () => fillTranslations()],
     ["fillTemplates", () => fillTemplates()],
@@ -209,7 +399,8 @@ async function init() {
     ["bindDocSelector", () => bindDocSelector()],
     ["loadBibleAssets", () => loadBibleAssets()],
     ["loadLastOrStartFresh", () => loadLastOrStartFresh()],
-    ["renderRightVerseBank", () => renderRightVerseBank()]
+    ["renderRightVerseBank", () => renderRightVerseBank()],
+    ["renderRecentVerses", () => renderRecentVerses()]
   ];
 
   for (const [name, fn] of steps) {
@@ -222,6 +413,7 @@ async function init() {
 
   updateWritingStats();
   updateSaveMeta();
+  updateSessionMeta();
   showToast(state.bibleLoaded ? "Ready" : "Ready (fallback verse set)");
 }
 
@@ -308,11 +500,29 @@ function buildStructuredBlocks(templateKey) {
 function createBlock(sectionName, content, placeholder, colorIndex) {
   const block = document.createElement("div");
   block.className = "editor-block";
+  block.setAttribute("draggable", "true");
 
   const label = document.createElement("div");
   label.className = "block-label";
   label.textContent = sectionName;
-  label.style.background = LABEL_COLORS[(colorIndex || 0) % LABEL_COLORS.length];
+  const paletteIndex = (colorIndex || 0) % activeLabelColors.length;
+  label.style.background = activeLabelColors[paletteIndex];
+  block.dataset.colorIndex = String(paletteIndex);
+
+  const header = document.createElement("div");
+  header.className = "block-header";
+
+  const dragHandle = document.createElement("button");
+  dragHandle.type = "button";
+  dragHandle.className = "block-drag-handle";
+  dragHandle.title = "Drag to reorder";
+  dragHandle.textContent = "≡";
+
+  const collapseBtn = document.createElement("button");
+  collapseBtn.type = "button";
+  collapseBtn.className = "block-collapse-btn";
+  collapseBtn.title = "Collapse/expand section";
+  collapseBtn.textContent = "−";
 
   const contentEl = document.createElement("div");
   contentEl.className = "block-content";
@@ -330,7 +540,39 @@ function createBlock(sectionName, content, placeholder, colorIndex) {
     state.lastFocusedBlock = contentEl;
   });
 
-  block.appendChild(label);
+  collapseBtn.addEventListener("click", () => {
+    const collapsed = block.classList.toggle("collapsed");
+    collapseBtn.textContent = collapsed ? "+" : "−";
+  });
+
+  block.addEventListener("dragstart", (event) => {
+    block.classList.add("dragging");
+    event.dataTransfer?.setData("text/plain", sectionName);
+  });
+  block.addEventListener("dragend", () => {
+    block.classList.remove("dragging");
+    syncBlocksToTextarea();
+    markDirty("Sections reordered");
+  });
+  block.addEventListener("dragover", (event) => {
+    event.preventDefault();
+  });
+  block.addEventListener("drop", (event) => {
+    event.preventDefault();
+    const container = $("structured-editor");
+    if (!container) return;
+    const dragging = container.querySelector(".editor-block.dragging");
+    if (!dragging || dragging === block) return;
+    const rect = block.getBoundingClientRect();
+    const insertAfter = (event.clientY - rect.top) > rect.height / 2;
+    if (insertAfter) container.insertBefore(dragging, block.nextSibling);
+    else container.insertBefore(dragging, block);
+  });
+
+  header.appendChild(dragHandle);
+  header.appendChild(label);
+  header.appendChild(collapseBtn);
+  block.appendChild(header);
   block.appendChild(contentEl);
   return block;
 }
@@ -425,11 +667,16 @@ function bindOverflowMenu() {
       case "new": newDocument(); break;
       case "duplicate": duplicateCurrentDocument(); break;
       case "delete": deleteCurrentDocument(); break;
+      case "pin": togglePinCurrentDocument(); break;
       case "copy": copyWritingAndNotes(); break;
       case "import": promptImportTxt(); break;
       case "export": exportTxt(); break;
+      case "bulk-export": bulkExportDocuments(); break;
       case "print": printView(); break;
       case "resolve": resolveReferencesInEditor(); break;
+      case "restore-trash": restoreFromTrash(); break;
+      case "clear-trash": clearTrash(); break;
+      case "shortcuts": openShortcutsModal(); break;
     }
   });
 }
@@ -441,7 +688,8 @@ function bindOverflowMenu() {
 function renderDocSelector() {
   const select = $("doc-title-select");
   if (!select) return;
-  const docs = getDocs();
+  const docs = getSortedDocs();
+  const filter = state.docFilter.trim().toLowerCase();
 
   select.innerHTML = "";
 
@@ -454,11 +702,16 @@ function renderDocSelector() {
     select.appendChild(opt);
   }
 
-  docs.forEach((doc) => {
+  docs.filter((doc) => {
+    if (!filter) return true;
+    const text = [doc.title || "", doc.template || "", doc.editor || "", doc.notes || ""].join(" ").toLowerCase();
+    return text.includes(filter);
+  }).forEach((doc) => {
     const opt = document.createElement("option");
     opt.value = doc.id;
     const dirtyMarker = doc.id === state.currentId && state.isDirty ? " *" : "";
-    opt.textContent = (doc.title || "Untitled") + dirtyMarker;
+    const pinMarker = isPinnedDoc(doc.id) ? "★ " : "";
+    opt.textContent = pinMarker + (doc.title || "Untitled") + dirtyMarker;
     if (doc.id === state.currentId) opt.selected = true;
     select.appendChild(opt);
   });
@@ -900,6 +1153,12 @@ function bindEvents() {
   if (els.docTitle) {
     els.docTitle.addEventListener("input", () => markDirty("Unsaved title"));
   }
+  if (els.docSearch) {
+    els.docSearch.addEventListener("input", () => {
+      state.docFilter = els.docSearch.value;
+      renderDocSelector();
+    });
+  }
   if (els.saveBtn) {
     els.saveBtn.addEventListener("click", saveCurrent);
   }
@@ -929,6 +1188,28 @@ function bindEvents() {
       event.target.value = "";
     });
   }
+  if (els.closeShortcutsBtn) {
+    els.closeShortcutsBtn.addEventListener("click", closeShortcutsModal);
+  }
+  if (els.shortcutsBackdrop) {
+    els.shortcutsBackdrop.addEventListener("click", closeShortcutsModal);
+  }
+  if (els.settingsBtn) {
+    els.settingsBtn.addEventListener("click", openSettingsPanel);
+  }
+  if (els.closeSettingsBtn) {
+    els.closeSettingsBtn.addEventListener("click", closeSettingsPanel);
+  }
+  if (els.settingsBackdrop) {
+    els.settingsBackdrop.addEventListener("click", closeSettingsPanel);
+  }
+  if (els.themeOptions) {
+    els.themeOptions.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-theme]");
+      if (!button) return;
+      applyThemePreset(button.dataset.theme);
+    });
+  }
   window.addEventListener("beforeunload", (event) => {
     if (!state.isDirty) return;
     event.preventDefault();
@@ -936,6 +1217,8 @@ function bindEvents() {
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeTemplateStudio();
+    if (event.key === "Escape") closeShortcutsModal();
+    if (event.key === "Escape") closeSettingsPanel();
     if ((event.ctrlKey || event.metaKey) && event.key === "s") {
       event.preventDefault();
       saveCurrent();
@@ -963,6 +1246,13 @@ function bindEvents() {
       event.preventDefault();
       els.verseQuery?.focus();
       els.verseQuery?.select();
+    }
+    if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key === "?") {
+      const targetTag = event.target?.tagName?.toLowerCase();
+      const isTypingTarget = targetTag === "input" || targetTag === "textarea" || event.target?.isContentEditable;
+      if (isTypingTarget) return;
+      event.preventDefault();
+      toggleShortcutsModal();
     }
   });
 }
@@ -1047,6 +1337,7 @@ function lookupVerse() {
   }
 
   state.currentLookupRef = passage.anchorRef;
+  pushRecentVerse(passage.anchorRef);
   renderCrossRefs();
   updateReadPanel();
 
@@ -1346,6 +1637,7 @@ function resolveReferencesInEditor() {
 function saveCurrent(options = {}) {
   const { silent = false, source = "manual" } = options;
   syncBlocksToTextarea();
+  applyAutoTitleSuggestion();
   const docs = getDocs();
   const now = new Date();
   const doc = {
@@ -1366,6 +1658,7 @@ function saveCurrent(options = {}) {
   state.currentId = doc.id;
   state.lastSavedAt = doc.updatedAt;
   state.isDirty = false;
+  recordAnalytics(doc);
   clearTimeout(state.autoSaveTimer);
   state.autoSaveTimer = null;
   if (silent) {
@@ -1407,7 +1700,7 @@ function loadLastOrStartFresh() {
   renderPrompts();
   renderSavedList();
   renderDocSelector();
-  const docs = getDocs();
+  const docs = getSortedDocs();
   const lastId = localStorage.getItem(LAST_DOC_KEY);
   const target = docs.find((d) => d.id === lastId) || docs[0];
   if (!target) {
@@ -1431,11 +1724,11 @@ function loadLastOrStartFresh() {
 function renderSavedList() {
   els.savedList.innerHTML = "";
   const allTemplates = getAllTemplates();
-  getDocs().slice(0, 8).forEach((doc) => {
+  getSortedDocs().slice(0, 8).forEach((doc) => {
     const node = els.savedItemTemplate.content.firstElementChild.cloneNode(true);
     const openButton = node.querySelector(".open-doc-btn");
     const savedMeta = node.querySelector(".saved-meta");
-    openButton.textContent = doc.title;
+    openButton.textContent = (isPinnedDoc(doc.id) ? "★ " : "") + doc.title;
     openButton.addEventListener("click", () => loadDocument(doc.id));
     savedMeta.textContent = (doc.template ? allTemplates[doc.template]?.label || doc.template : "No template") + " \u00B7 " + formatDate(new Date(doc.updatedAt));
     els.savedList.appendChild(node);
@@ -1506,8 +1799,12 @@ function deleteCurrentDocument() {
     setStatus("Document not found");
     return;
   }
-  const proceed = window.confirm('Delete "' + (target.title || "Untitled") + '"? This cannot be undone.');
+  const proceed = window.confirm('Move "' + (target.title || "Untitled") + '" to trash?');
   if (!proceed) return;
+
+  const trash = getTrashDocs();
+  trash.unshift({ ...target, trashedAt: new Date().toISOString() });
+  localStorage.setItem(TRASH_KEY, JSON.stringify(trash.slice(0, 100)));
 
   const remaining = docs.filter((d) => d.id !== state.currentId);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(remaining));
@@ -1516,7 +1813,8 @@ function deleteCurrentDocument() {
   } else {
     newDocument();
   }
-  setStatus("Document deleted");
+  removePinnedDoc(target.id);
+  setStatus("Moved to trash");
 }
 
 async function copyWritingAndNotes() {
@@ -1569,6 +1867,175 @@ async function importTxtFile(file) {
   updateWritingStats();
   updateSaveMeta();
   markDirty("Imported " + file.name);
+}
+
+function togglePinCurrentDocument() {
+  if (!state.currentId) {
+    setStatus("Save document before pinning");
+    return;
+  }
+  const pinned = getPinnedDocIds();
+  if (pinned.includes(state.currentId)) {
+    removePinnedDoc(state.currentId);
+    setStatus("Document unpinned");
+  } else {
+    pinned.unshift(state.currentId);
+    localStorage.setItem(PINNED_DOCS_KEY, JSON.stringify([...new Set(pinned)]));
+    setStatus("Document pinned");
+  }
+  renderDocSelector();
+  renderSavedList();
+}
+
+function bulkExportDocuments() {
+  const docs = getSortedDocs();
+  if (!docs.length) {
+    setStatus("No documents to export");
+    return;
+  }
+  const selection = window.prompt("Bulk export: enter document numbers (e.g. 1,2,4) or ALL\n" +
+    docs.map((doc, idx) => (idx + 1) + ". " + (doc.title || "Untitled")).join("\n"), "ALL");
+  if (!selection) return;
+
+  const selectedDocs = selection.trim().toUpperCase() === "ALL"
+    ? docs
+    : selection.split(",").map((v) => Number(v.trim()) - 1).filter((idx) => idx >= 0 && idx < docs.length).map((idx) => docs[idx]);
+
+  if (!selectedDocs.length) {
+    setStatus("No valid documents selected");
+    return;
+  }
+
+  const payload = selectedDocs.map((doc) => {
+    return [
+      "# " + (doc.title || "Untitled Reflection"),
+      "Updated: " + formatDate(new Date(doc.updatedAt || Date.now())),
+      "",
+      doc.editor || "",
+      "",
+      "--- Notes ---",
+      doc.notes || "",
+      "",
+      "==================================================",
+      ""
+    ].join("\n");
+  }).join("\n");
+
+  const blob = new Blob([payload], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "cww-bulk-export-" + new Date().toISOString().slice(0, 10) + ".txt";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  setStatus("Bulk export complete (" + selectedDocs.length + ")");
+}
+
+function restoreFromTrash() {
+  const trash = getTrashDocs();
+  if (!trash.length) {
+    setStatus("Trash is empty");
+    return;
+  }
+  const selection = window.prompt("Restore from trash: enter item number\n" +
+    trash.slice(0, 15).map((doc, idx) => (idx + 1) + ". " + (doc.title || "Untitled")).join("\n"), "1");
+  if (!selection) return;
+  const idx = Number(selection) - 1;
+  if (Number.isNaN(idx) || idx < 0 || idx >= trash.length) {
+    setStatus("Invalid trash selection");
+    return;
+  }
+  const selected = trash[idx];
+  const docs = getDocs();
+  const restoredId = docs.some((d) => d.id === selected.id) ? crypto.randomUUID() : selected.id;
+  docs.unshift({
+    id: restoredId || crypto.randomUUID(),
+    title: selected.title || "Untitled Reflection",
+    template: selected.template || "",
+    step: selected.step || "write",
+    editor: selected.editor || "",
+    notes: selected.notes || "",
+    updatedAt: new Date().toISOString()
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(docs.slice(0, 30)));
+  trash.splice(idx, 1);
+  localStorage.setItem(TRASH_KEY, JSON.stringify(trash));
+  renderDocSelector();
+  renderSavedList();
+  setStatus("Restored from trash");
+}
+
+function clearTrash() {
+  const trash = getTrashDocs();
+  if (!trash.length) {
+    setStatus("Trash is already empty");
+    return;
+  }
+  const proceed = window.confirm("Empty trash (" + trash.length + " item(s))?");
+  if (!proceed) return;
+  localStorage.setItem(TRASH_KEY, "[]");
+  setStatus("Trash emptied");
+}
+
+function pushRecentVerse(ref) {
+  if (!ref) return;
+  const normalized = normalizeReference(ref);
+  state.recentVerses = [normalized, ...state.recentVerses.filter((r) => r !== normalized)].slice(0, 12);
+  localStorage.setItem(RECENT_VERSES_KEY, JSON.stringify(state.recentVerses));
+  renderRecentVerses();
+}
+
+function renderRecentVerses() {
+  if (!els.recentVersesList) return;
+  els.recentVersesList.innerHTML = "";
+  if (!state.recentVerses.length) {
+    const li = document.createElement("li");
+    li.innerHTML = '<span class="muted">No recent lookups yet.</span>';
+    els.recentVersesList.appendChild(li);
+    return;
+  }
+  state.recentVerses.forEach((ref) => {
+    const li = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = ref;
+    btn.addEventListener("click", () => {
+      els.verseQuery.value = ref;
+      lookupVerse();
+      const token = "[[" + ref + "]]";
+      const target = state.lastFocusedBlock || document.querySelector("#structured-editor .block-content");
+      if (target) {
+        target.innerText = target.innerText ? target.innerText + " " + token : token;
+        syncBlocksToTextarea();
+      } else {
+        insertTextIntoEditor(token);
+      }
+      markDirty("Inserted [[" + ref + "]] token");
+    });
+    li.appendChild(btn);
+    els.recentVersesList.appendChild(li);
+  });
+}
+
+function openShortcutsModal() {
+  if (!els.shortcutsModal || !els.shortcutsBackdrop) return;
+  els.shortcutsModal.classList.remove("hidden");
+  els.shortcutsBackdrop.classList.remove("hidden");
+  els.shortcutsModal.setAttribute("aria-hidden", "false");
+}
+
+function closeShortcutsModal() {
+  if (!els.shortcutsModal || !els.shortcutsBackdrop) return;
+  els.shortcutsModal.classList.add("hidden");
+  els.shortcutsBackdrop.classList.add("hidden");
+  els.shortcutsModal.setAttribute("aria-hidden", "true");
+}
+
+function toggleShortcutsModal() {
+  if (els.shortcutsModal?.classList.contains("hidden")) openShortcutsModal();
+  else closeShortcutsModal();
 }
 
 function exportTxt() {
@@ -1626,6 +2093,7 @@ function printView() {
 function markDirty(message) {
   state.isDirty = true;
   els.status.textContent = message;
+  applyAutoTitleSuggestion();
   scheduleAutoSave();
   renderDocSelector();
   updateWritingStats();
@@ -1641,12 +2109,150 @@ function setStatus(message, toast = true) {
   if (toast) showToast(message);
 }
 
+function applyThemePreset(themeId, options = {}) {
+  const { silent = false } = options;
+  const id = THEME_PRESETS[themeId] ? themeId : "light";
+  const preset = THEME_PRESETS[id];
+  Object.entries(preset.vars).forEach(([name, value]) => {
+    document.documentElement.style.setProperty(name, value);
+  });
+  document.body.style.background = preset.vars["--bg"] || preset.bodyBg || "#f7f7f5";
+  activeLabelColors = preset.sectionLabels.slice();
+  localStorage.setItem(THEME_KEY, id);
+  refreshThemeOptionButtons(id);
+  refreshBlockLabelGradients();
+  if (!silent) setStatus("Theme applied: " + id);
+}
+
+function refreshBlockLabelGradients() {
+  document.querySelectorAll("#structured-editor .editor-block").forEach((block, idx) => {
+    const label = block.querySelector(".block-label");
+    if (!label) return;
+    const paletteIndex = Number(block.dataset.colorIndex || idx) % activeLabelColors.length;
+    label.style.background = activeLabelColors[paletteIndex];
+  });
+}
+
+function refreshThemeOptionButtons(activeThemeId) {
+  if (!els.themeOptions) return;
+  els.themeOptions.querySelectorAll("button[data-theme]").forEach((btn) => {
+    btn.classList.toggle("active-theme", btn.dataset.theme === activeThemeId);
+  });
+}
+
+function openSettingsPanel() {
+  if (!els.settingsPanel || !els.settingsBackdrop) return;
+  els.settingsPanel.classList.remove("hidden");
+  els.settingsBackdrop.classList.remove("hidden");
+  els.settingsPanel.setAttribute("aria-hidden", "false");
+}
+
+function closeSettingsPanel() {
+  if (!els.settingsPanel || !els.settingsBackdrop) return;
+  els.settingsPanel.classList.add("hidden");
+  els.settingsBackdrop.classList.add("hidden");
+  els.settingsPanel.setAttribute("aria-hidden", "true");
+}
+
+function loadPersistedUiState() {
+  const savedTheme = localStorage.getItem(THEME_KEY) || "light";
+  applyThemePreset(savedTheme, { silent: true });
+  state.recentVerses = getRecentVerses();
+  state.sessionStartWords = getDocs().reduce((sum, doc) => sum + countWords((doc.editor || "") + " " + (doc.notes || "")), 0);
+}
+
 function getDocs() {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
   } catch {
     return [];
   }
+}
+
+function getTrashDocs() {
+  try {
+    return JSON.parse(localStorage.getItem(TRASH_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function getPinnedDocIds() {
+  try {
+    return JSON.parse(localStorage.getItem(PINNED_DOCS_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function isPinnedDoc(docId) {
+  return getPinnedDocIds().includes(docId);
+}
+
+function removePinnedDoc(docId) {
+  const pinned = getPinnedDocIds().filter((id) => id !== docId);
+  localStorage.setItem(PINNED_DOCS_KEY, JSON.stringify(pinned));
+}
+
+function getSortedDocs() {
+  const pinned = getPinnedDocIds();
+  const docs = getDocs().slice();
+  docs.sort((a, b) => {
+    const aPinned = pinned.includes(a.id) ? 1 : 0;
+    const bPinned = pinned.includes(b.id) ? 1 : 0;
+    if (aPinned !== bPinned) return bPinned - aPinned;
+    return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
+  });
+  return docs;
+}
+
+function getRecentVerses() {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_VERSES_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function applyAutoTitleSuggestion() {
+  const currentTitle = els.docTitle.value.trim();
+  if (currentTitle && currentTitle.toLowerCase() !== "untitled reflection") return;
+  const blocks = document.querySelectorAll("#structured-editor .block-content");
+  for (const block of blocks) {
+    const text = (block.innerText || "").trim();
+    if (!text) continue;
+    const suggestion = text.split(/\r?\n/)[0].replace(/[^\w\s:'"-]/g, "").trim();
+    if (suggestion.length >= 6) {
+      els.docTitle.value = suggestion.slice(0, 70);
+      break;
+    }
+  }
+}
+
+function getAnalytics() {
+  try {
+    return JSON.parse(localStorage.getItem(ANALYTICS_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function recordAnalytics(doc) {
+  const analytics = getAnalytics();
+  const today = new Date().toISOString().slice(0, 10);
+  const writtenWords = countWords((doc.editor || "") + " " + (doc.notes || ""));
+  analytics.docWords = analytics.docWords || {};
+  const previousWords = Number(analytics.docWords[doc.id] || 0);
+  const delta = Math.max(0, writtenWords - previousWords);
+  analytics.days = analytics.days || {};
+  analytics.days[today] = (analytics.days[today] || 0) + delta;
+  analytics.docWords[doc.id] = writtenWords;
+  localStorage.setItem(ANALYTICS_KEY, JSON.stringify(analytics));
+  updateSessionMeta();
+}
+
+function countWords(text) {
+  return String(text || "").trim().split(/\s+/).filter(Boolean).length;
 }
 
 function insertTextIntoEditor(text) {
@@ -1679,13 +2285,15 @@ function scheduleAutoSave() {
 function updateWritingStats() {
   if (!els.writingStats) return;
   const text = [els.editor?.value || "", els.notes?.value || ""].join("\n").trim();
+  const words = countWords(text);
+  const chars = text.length;
   if (!text) {
     els.writingStats.textContent = "0 words - 0 chars";
+    updateSessionMeta(0);
     return;
   }
-  const words = text.split(/\s+/).filter(Boolean).length;
-  const chars = text.length;
   els.writingStats.textContent = words + " words - " + chars + " chars";
+  updateSessionMeta(words);
 }
 
 function updateSaveMeta() {
@@ -1699,6 +2307,25 @@ function updateSaveMeta() {
     return;
   }
   els.saveMeta.textContent = "Last saved " + formatDate(new Date(state.lastSavedAt));
+}
+
+function updateSessionMeta(currentDocWords = null) {
+  if (!els.sessionMeta) return;
+  const docsWords = getDocs().reduce((sum, doc) => sum + countWords((doc.editor || "") + " " + (doc.notes || "")), 0);
+  const sessionDelta = Math.max(0, docsWords - state.sessionStartWords);
+  const analytics = getAnalytics();
+  const days = Object.keys(analytics.days || {}).sort();
+  let streak = 0;
+  for (let i = days.length - 1; i >= 0; i -= 1) {
+    const day = days[i];
+    const expected = new Date();
+    expected.setDate(expected.getDate() - streak);
+    const expectedStr = expected.toISOString().slice(0, 10);
+    if (day === expectedStr) streak += 1;
+    else break;
+  }
+  const liveWords = typeof currentDocWords === "number" ? currentDocWords : countWords((els.editor?.value || "") + " " + (els.notes?.value || ""));
+  els.sessionMeta.textContent = "Session: +" + sessionDelta + " words | Live: " + liveWords + " | Streak: " + streak + "d";
 }
 
 function formatDate(date) {

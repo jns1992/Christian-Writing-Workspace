@@ -20,6 +20,7 @@
           <span class="flow-arrow">&rarr;</span>
           <button class="flow-step" data-step="encourage">4&ensp;ENCOURAGE</button>
         </nav>
+        <button class="icon-btn" id="settings-btn" title="Theme settings">&#9881;</button>
         <div class="overflow-menu-wrap">
           <button class="icon-btn menu-btn" id="overflow-menu-btn" title="More options">&hellip;</button>
           <div class="overflow-dropdown hidden" id="overflow-dropdown">
@@ -27,13 +28,18 @@
             <button data-action="new">New Document</button>
             <button data-action="duplicate">Duplicate Document</button>
             <button data-action="delete">Delete Document</button>
+            <button data-action="pin">Pin / Unpin Document</button>
             <div class="dropdown-divider"></div>
             <button data-action="copy">Copy Writing + Notes</button>
             <button data-action="import">Import .txt</button>
             <button data-action="export">Export .txt</button>
+            <button data-action="bulk-export">Bulk Export</button>
             <button data-action="print">Print</button>
             <div class="dropdown-divider"></div>
             <button data-action="resolve">Resolve [[Verses]]</button>
+            <button data-action="restore-trash">Restore from Trash</button>
+            <button data-action="clear-trash">Empty Trash</button>
+            <button data-action="shortcuts">Keyboard Shortcuts</button>
           </div>
         </div>
       </div>
@@ -45,6 +51,7 @@
         </select>
       </div>
       <input id="doc-title" class="doc-title-input" type="text" placeholder="Document title..." aria-label="Document title" />
+      <input id="doc-search" class="doc-search-input" type="text" placeholder="Filter docs..." aria-label="Filter documents" />
       <div class="select-wrap has-icon">
         <span class="select-icon">&#x1F513;</span>
         <select id="template-select" aria-label="Choose template"></select>
@@ -68,6 +75,10 @@
         <article id="verse-result" class="verse-result hidden">
           <p class="muted">Search for a verse to display it here.</p>
         </article>
+      </section>
+      <section class="recent-verses-section">
+        <h2>Recent Verses</h2>
+        <ul id="recent-verses-list" class="category-list"></ul>
       </section>
 
       <section class="verse-library-section">
@@ -152,7 +163,6 @@
 
       <div class="canvas-footer">
         <p id="writing-stats" class="writing-stats">0 words - 0 chars</p>
-        <p id="save-meta" class="save-meta">Not saved yet</p>
         <button class="next-step-btn" id="next-step-btn">Next: Encourage &rarr;</button>
       </div>
 
@@ -214,6 +224,41 @@
   <div id="template-studio-modal" class="hidden" aria-hidden="true"></div>
   <div id="template-modal-backdrop" class="hidden"></div>
   <button id="close-template-studio-btn" class="hidden" type="button"></button>
+  <div id="shortcuts-modal" class="shortcuts-modal hidden" aria-hidden="true">
+    <div class="shortcuts-card">
+      <h3>Keyboard Shortcuts</h3>
+      <ul>
+        <li><strong>Ctrl/Cmd + S</strong> Save</li>
+        <li><strong>Ctrl/Cmd + N</strong> New Document</li>
+        <li><strong>Ctrl/Cmd + E</strong> Export .txt</li>
+        <li><strong>Ctrl/Cmd + Shift + D</strong> Duplicate</li>
+        <li><strong>Ctrl/Cmd + Shift + R</strong> Resolve [[Verse]]</li>
+        <li><strong>/</strong> Focus scripture search</li>
+        <li><strong>?</strong> Toggle this shortcuts panel</li>
+      </ul>
+      <button id="close-shortcuts-btn" class="primary-btn" type="button">Close</button>
+    </div>
+  </div>
+  <div id="shortcuts-backdrop" class="shortcuts-backdrop hidden"></div>
+  <div id="settings-panel" class="settings-panel hidden" aria-hidden="true">
+    <div class="settings-card">
+      <div class="settings-head">
+        <h3>Settings</h3>
+        <button id="close-settings-btn" class="icon-btn" type="button" title="Close settings">&times;</button>
+      </div>
+      <p class="muted">Choose a preset theme</p>
+      <div id="theme-options" class="theme-options">
+        <button type="button" data-theme="light">Light</button>
+        <button type="button" data-theme="dark">Dark</button>
+        <button type="button" data-theme="sepia">Sepia</button>
+        <button type="button" data-theme="slate">Slate Gray</button>
+        <button type="button" data-theme="greenwhite">Green/White</button>
+        <button type="button" data-theme="bluegreen">Blue/Green</button>
+        <button type="button" data-theme="skyblue">Light Sky Blue</button>
+      </div>
+    </div>
+  </div>
+  <div id="settings-backdrop" class="settings-backdrop hidden"></div>
 
   <!-- Hidden compat elements -->
   <button id="resolve-btn" class="hidden">Resolve</button>
