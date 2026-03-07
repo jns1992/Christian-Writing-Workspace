@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Christian Writing Workspace</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="top-shell">
+    <div class="top-row">
+      <h1>Christian Writing Workspace</h1>
+      <div class="top-row-right">
+        <nav class="flow-nav" aria-label="Writing flow">
+          <button class="flow-step" data-step="read">1&ensp;READ</button>
+          <span class="flow-arrow">&rarr;</span>
+          <button class="flow-step" data-step="reflect">2&ensp;REFLECT</button>
+          <span class="flow-arrow">&rarr;</span>
+          <button class="flow-step active" data-step="write">3&ensp;WRITE</button>
+          <span class="flow-arrow">&rarr;</span>
+          <button class="flow-step" data-step="encourage">4&ensp;ENCOURAGE</button>
+        </nav>
+        <div class="overflow-menu-wrap">
+          <button class="icon-btn menu-btn" id="overflow-menu-btn" title="More options">&hellip;</button>
+          <div class="overflow-dropdown hidden" id="overflow-dropdown">
+            <button data-action="save">Save</button>
+            <button data-action="new">New Document</button>
+            <button data-action="duplicate">Duplicate Document</button>
+            <button data-action="delete">Delete Document</button>
+            <div class="dropdown-divider"></div>
+            <button data-action="copy">Copy Writing + Notes</button>
+            <button data-action="import">Import .txt</button>
+            <button data-action="export">Export .txt</button>
+            <button data-action="print">Print</button>
+            <div class="dropdown-divider"></div>
+            <button data-action="resolve">Resolve [[Verses]]</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="control-row">
+      <div class="select-wrap">
+        <select id="doc-title-select" aria-label="Document">
+          <option>Untitled Devotional</option>
+        </select>
+      </div>
+      <input id="doc-title" class="doc-title-input" type="text" placeholder="Document title..." aria-label="Document title" />
+      <div class="select-wrap has-icon">
+        <span class="select-icon">&#x1F513;</span>
+        <select id="template-select" aria-label="Choose template"></select>
+      </div>
+      <div class="select-wrap narrow">
+        <select id="translation-select" aria-label="Choose translation"></select>
+      </div>
+      <button id="apply-template-btn" class="icon-btn" title="Apply selected template">+</button>
+    </div>
+  </header>
+
+  <main class="workspace-grid">
+    <!-- LEFT SIDEBAR -->
+    <aside class="left-rail card">
+      <section class="scripture-tools-section">
+        <h2>Scripture Tools</h2>
+        <div class="search-row">
+          <span class="search-icon">&#x1F50D;</span>
+          <input id="verse-query" type="text" placeholder="Search Scripture..." />
+        </div>
+        <article id="verse-result" class="verse-result hidden">
+          <p class="muted">Search for a verse to display it here.</p>
+        </article>
+      </section>
+
+      <section class="verse-library-section">
+        <button class="library-header" id="verse-library-toggle">
+          <span class="lib-icon">&#x1F4CE;</span>
+          <span class="lib-label">Verse Library</span>
+          <span class="lib-chevron">&rsaquo;</span>
+        </button>
+        <div class="library-body" id="verse-library-body">
+          <select id="category-select" class="hidden"></select>
+          <ul id="verse-bank-list" class="category-list"></ul>
+        </div>
+      </section>
+
+      <section class="manage-verses-section">
+        <button class="sidebar-item" id="manage-verses-btn">
+          <span class="item-icon">&#x270F;</span>
+          <span>Manage Verses</span>
+          <span class="item-chevron">&rsaquo;</span>
+        </button>
+      </section>
+
+      <section class="templates-section">
+        <h2>Templates</h2>
+        <ul id="template-list" class="template-list"></ul>
+        <button class="add-template-btn" id="add-template-btn">+ Add Template</button>
+      </section>
+
+      <!-- hidden elements for JS compat -->
+      <div class="hidden">
+        <button id="template-apply-secondary"></button>
+        <div id="template-preview"></div>
+        <ul id="template-prompt-preview"></ul>
+      </div>
+    </aside>
+
+    <!-- CENTER CANVAS -->
+    <section class="center-canvas card">
+      <div class="canvas-header">
+        <h2 id="canvas-title">Write Your Devotional</h2>
+        <button class="dots-btn" title="More options">&hellip;</button>
+      </div>
+
+      <div class="canvas-subhead">
+        <span class="subhead-scripture" id="subhead-scripture">$| Scripture</span>
+        <span class="subhead-flow" id="subhead-flow">1 READ &mdash; 2 REFLECT &mdash; 3 WRITE</span>
+      </div>
+
+      <!-- READ panel -->
+      <div class="flow-panel" id="panel-read">
+        <div class="read-scripture-display" id="read-scripture-display">
+          <p class="muted">Search for a verse in the left sidebar to read and meditate on it here.</p>
+        </div>
+      </div>
+
+      <!-- REFLECT panel -->
+      <div class="flow-panel" id="panel-reflect">
+        <h3>Reflection Prompts</h3>
+        <ul id="reflect-prompts-list" class="reflect-prompts-list"></ul>
+        <textarea id="reflect-textarea" class="reflect-textarea" placeholder="Write your reflections here..." spellcheck="true"></textarea>
+      </div>
+
+      <!-- WRITE panel (default active) -->
+      <div class="flow-panel active" id="panel-write">
+        <div class="structured-editor" id="structured-editor">
+          <!-- Dynamically generated from template -->
+        </div>
+      </div>
+
+      <!-- ENCOURAGE panel -->
+      <div class="flow-panel" id="panel-encourage">
+        <div class="encourage-content">
+          <h3>Share Your Writing</h3>
+          <p class="muted">Your writing is ready to share, export, or print.</p>
+          <div class="encourage-actions">
+            <button class="primary-btn" id="encourage-save-btn">Save Document</button>
+            <button class="ghost-btn" id="encourage-export-btn">Export as .txt</button>
+            <button class="ghost-btn" id="encourage-print-btn">Print</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="canvas-footer">
+        <p id="writing-stats" class="writing-stats">0 words - 0 chars</p>
+        <p id="save-meta" class="save-meta">Not saved yet</p>
+        <button class="next-step-btn" id="next-step-btn">Next: Encourage &rarr;</button>
+      </div>
+
+      <!-- Hidden textarea for JS compat -->
+      <textarea id="editor" class="hidden" spellcheck="true"></textarea>
+      <p id="status" class="status hidden">Ready</p>
+    </section>
+
+    <!-- RIGHT SIDEBAR -->
+    <aside class="right-rail card">
+      <section class="reflection-notes-section">
+        <div class="right-tabs">
+          <span class="active" data-tab="notes">Reflection Notes</span>
+          <span data-tab="versebank">Verse Bank</span>
+        </div>
+        <div id="notes-panel">
+          <textarea id="notes" spellcheck="true" placeholder="Write your reflection notes here..."></textarea>
+          <div class="verse-actions-row">
+            <button class="add-verse-btn primary-btn" id="add-verse-notes-btn">+ Verse</button>
+            <span class="verse-action-link">Cross References</span>
+          </div>
+        </div>
+        <div id="versebank-panel" class="hidden">
+          <ul id="right-verse-bank-list" class="category-list"></ul>
+        </div>
+      </section>
+
+      <section class="crossrefs-section">
+        <div class="crossrefs-header">
+          <h3 id="crossrefs-title">Cross References</h3>
+          <span class="crossrefs-chevron">&rsaquo;</span>
+        </div>
+        <ul id="crossrefs-list" class="crossrefs-list"></ul>
+      </section>
+
+      <div class="right-rail-footer">
+        <button class="add-verse-btn-outline" id="add-verse-editor-btn">+ Verse</button>
+      </div>
+
+      <!-- Hidden elements for JS compat -->
+      <section class="hidden">
+        <h3>Reflection Prompts</h3>
+        <ul id="prompts-list"></ul>
+      </section>
+      <section class="hidden saved-wrap">
+        <h3>Saved</h3>
+        <ul id="saved-list" class="saved-list"></ul>
+      </section>
+    </aside>
+  </main>
+
+  <template id="saved-item-template">
+    <li>
+      <button class="open-doc-btn"></button>
+      <span class="saved-meta"></span>
+    </li>
+  </template>
+
+  <div id="template-studio-modal" class="hidden" aria-hidden="true"></div>
+  <div id="template-modal-backdrop" class="hidden"></div>
+  <button id="close-template-studio-btn" class="hidden" type="button"></button>
+
+  <!-- Hidden compat elements -->
+  <button id="resolve-btn" class="hidden">Resolve</button>
+  <button id="new-doc-btn" class="hidden">New</button>
+  <button id="save-btn" class="hidden">Save</button>
+  <button id="export-btn" class="hidden">Export</button>
+  <button id="print-btn" class="hidden">Print</button>
+  <input id="import-file-input" class="hidden" type="file" accept=".txt,text/plain" />
+
+  <script src="main.js"></script>
+</body>
+</html>
