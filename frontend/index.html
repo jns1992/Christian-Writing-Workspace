@@ -40,6 +40,9 @@
             <button data-action="restore-trash">Restore from Trash</button>
             <button data-action="clear-trash">Empty Trash</button>
             <button data-action="shortcuts">Keyboard Shortcuts</button>
+            <div class="dropdown-divider"></div>
+            <button data-action="eco-sync" onclick="window.BibleEcosystem&&window.BibleEcosystem.sync()">&#x1F504; Sync Ecosystem</button>
+            <button data-action="eco-open" id="eco-open-btn">&#x1F517; Look up in Thought Engine</button>
           </div>
         </div>
       </div>
@@ -97,6 +100,11 @@
         <button class="sidebar-item" id="manage-verses-btn">
           <span class="item-icon">&#x270F;</span>
           <span>Manage Verses</span>
+          <span class="item-chevron">&rsaquo;</span>
+        </button>
+        <button class="sidebar-item" id="ecosystem-sync-btn" onclick="window.BibleEcosystem&&window.BibleEcosystem.sync()">
+          <span class="item-icon">&#x1F504;</span>
+          <span>Sync Ecosystem</span>
           <span class="item-chevron">&rsaquo;</span>
         </button>
       </section>
@@ -269,5 +277,6 @@
   <input id="import-file-input" class="hidden" type="file" accept=".txt,text/plain" />
 
   <script src="main.js"></script>
+  <script src="ecosystem.js"></script>
 </body>
 </html>
