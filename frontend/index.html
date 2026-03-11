@@ -169,6 +169,8 @@
         </div>
       </div>
 
+      <div id="session-indicator" class="session-indicator inactive"></div>
+
       <div class="canvas-footer">
         <p id="writing-stats" class="writing-stats">0 words - 0 chars</p>
         <button class="next-step-btn" id="next-step-btn">Next: Encourage &rarr;</button>
@@ -185,6 +187,7 @@
         <div class="right-tabs">
           <span class="active" data-tab="notes">Reflection Notes</span>
           <span data-tab="versebank">Verse Bank</span>
+          <span data-tab="insights">Insights</span>
         </div>
         <div id="notes-panel">
           <textarea id="notes" spellcheck="true" placeholder="Write your reflection notes here..."></textarea>
@@ -195,6 +198,10 @@
         </div>
         <div id="versebank-panel" class="hidden">
           <ul id="right-verse-bank-list" class="category-list"></ul>
+        </div>
+        <div id="insights-panel" class="hidden">
+          <div id="insights-list" class="insights-list"></div>
+          <p id="insights-empty" class="muted" style="padding:4px;font-size:10px;">No matching insights. Sync ecosystem data to import insights from other apps.</p>
         </div>
       </section>
 
@@ -235,6 +242,14 @@
   <div id="shortcuts-modal" class="shortcuts-modal hidden" aria-hidden="true">
     <div class="shortcuts-card">
       <h3>Keyboard Shortcuts</h3>
+      <p class="shortcuts-section-label">Ecosystem</p>
+      <ul>
+        <li><strong>Ctrl+K</strong> Command Palette</li>
+        <li><strong>Ctrl+Shift+S</strong> Ecosystem Sync</li>
+        <li><strong>Alt+S</strong> Start / End Session</li>
+        <li><strong>Ctrl+/</strong> Show This Help</li>
+      </ul>
+      <p class="shortcuts-section-label">App</p>
       <ul>
         <li><strong>Ctrl/Cmd + S</strong> Save</li>
         <li><strong>Ctrl/Cmd + N</strong> New Document</li>
@@ -275,6 +290,13 @@
   <button id="export-btn" class="hidden">Export</button>
   <button id="print-btn" class="hidden">Print</button>
   <input id="import-file-input" class="hidden" type="file" accept=".txt,text/plain" />
+
+  <!-- Command Palette -->
+  <div id="command-palette-backdrop" class="cmd-palette-backdrop hidden"></div>
+  <div id="command-palette" class="cmd-palette hidden" role="dialog" aria-label="Command palette">
+    <input id="cmd-palette-input" type="text" class="cmd-palette-input" placeholder="Search verses, actions..." />
+    <div id="cmd-palette-list" class="cmd-palette-list"></div>
+  </div>
 
   <script src="main.js"></script>
   <script src="ecosystem.js"></script>

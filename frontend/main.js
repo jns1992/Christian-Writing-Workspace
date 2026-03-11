@@ -8,6 +8,8 @@ const CUSTOM_TEMPLATES_KEY = "cww.customTemplates.v1";
 const FLOW_STEP_KEY = "cww.flowStep.v1";
 const RECENT_VERSES_KEY = "cww.recentVerses.v1";
 const ANALYTICS_KEY = "cww.analytics.v1";
+const SESSIONS_KEY = "cww-sessions-v1";
+const ACTIVE_SESSION_KEY = "cww-active-session";
 const FLOW_STEPS = ["read", "reflect", "write", "encourage"];
 const AUTOSAVE_DELAY_MS = 1800;
 
@@ -379,6 +381,45 @@ bootstrap();
    INIT
    ============================================================ */
 
+/* ============================================================
+   DEEP LINK URL PARAMETER HANDLING
+   ============================================================ */
+
+function handleDeepLinkOnStartup() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+
+    // Handle session continuity from cross-app deep links
+    const sessionParam = params.get("session");
+    if (sessionParam) {
+      localStorage.setItem("cww-active-session", sessionParam);
+      // Re-render session indicator if available
+      if (typeof renderSessionIndicator === "function") renderSessionIndicator();
+    }
+
+    if (!ref) {
+      // Only session param — clean URL and return
+      if (sessionParam) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      return;
+    }
+
+    // Clear URL params so they don't persist on reload
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    // Pre-populate the verse search input and trigger lookup
+    if (els.verseQuery) {
+      els.verseQuery.value = ref;
+      lookupVerse();
+      showToast("Opened verse: " + ref);
+    }
+  } catch (err) {
+    console.error("Deep link handling error:", err);
+  }
+}
+
 async function init() {
   loadPersistedUiState();
   const steps = [
@@ -414,6 +455,8 @@ async function init() {
   updateWritingStats();
   updateSaveMeta();
   updateSessionMeta();
+  renderSessionIndicator();
+  handleDeepLinkOnStartup();
   showToast(state.bibleLoaded ? "Ready" : "Ready (fallback verse set)");
 }
 
@@ -435,24 +478,63 @@ function bootstrap() {
 }
 
 /* ============================================================
-   TOAST NOTIFICATIONS (visible feedback)
+   TOAST NOTIFICATIONS (Ecosystem-standard)
    ============================================================ */
 
-function showToast(message) {
-  let toast = document.getElementById("cww-toast");
-  if (!toast) {
-    toast = document.createElement("div");
-    toast.id = "cww-toast";
-    toast.className = "toast";
-    document.body.appendChild(toast);
-  }
-  toast.textContent = message;
-  toast.className = "toast show";
-  clearTimeout(toast._timer);
-  toast._timer = setTimeout(() => {
-    toast.className = "toast";
-  }, 2500);
+let _cwwToastContainer = null;
+
+function _ensureCwwToastContainer() {
+  if (_cwwToastContainer && document.body.contains(_cwwToastContainer)) return _cwwToastContainer;
+  _cwwToastContainer = document.createElement("div");
+  _cwwToastContainer.className = "cww-toast-container";
+  document.body.appendChild(_cwwToastContainer);
+  return _cwwToastContainer;
 }
+
+function _dismissCwwToast(toast) {
+  if (!toast || toast.classList.contains("cww-toast-exit")) return;
+  toast.classList.remove("cww-toast-visible");
+  toast.classList.add("cww-toast-exit");
+  setTimeout(() => toast.remove(), 300);
+}
+
+function showToast(message, type, duration) {
+  if (typeof type === "undefined") type = "info";
+  if (typeof duration === "undefined") duration = 3000;
+  const container = _ensureCwwToastContainer();
+  const toast = document.createElement("div");
+  toast.className = "cww-toast cww-toast-" + type;
+  const icons = { success: "\u2713", info: "\u2139", error: "\u2717" };
+  const isError = type === "error";
+  let html = '<span class="cww-toast-icon">' + (icons[type] || icons.info) + '</span>';
+  html += '<span class="cww-toast-msg">' + message + '</span>';
+  if (isError) {
+    html += '<button class="cww-toast-dismiss" aria-label="Dismiss">\u2715</button>';
+  }
+  toast.innerHTML = html;
+  container.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add("cww-toast-visible"));
+  if (isError) {
+    const dismissBtn = toast.querySelector(".cww-toast-dismiss");
+    if (dismissBtn) {
+      dismissBtn.addEventListener("click", function(e) {
+        e.stopPropagation();
+        _dismissCwwToast(toast);
+      });
+    }
+  } else {
+    const effectiveDuration = duration;
+    setTimeout(() => _dismissCwwToast(toast), effectiveDuration);
+    toast.addEventListener("click", function() { _dismissCwwToast(toast); });
+  }
+}
+
+window.CWWToast = {
+  show: function(message, options) {
+    const opts = options || {};
+    showToast(message, opts.type || "info", opts.duration || 3000);
+  }
+};
 
 /* ============================================================
    FEATURE 1: STRUCTURED EDITOR BLOCKS
@@ -534,6 +616,7 @@ function createBlock(sectionName, content, placeholder, colorIndex) {
     syncBlocksToTextarea();
     markDirty("Unsaved changes");
     debounceAutoResolve();
+    debounceInsightsRefresh();
   });
 
   contentEl.addEventListener("focus", () => {
@@ -750,6 +833,7 @@ function bindRightSidebarTabs() {
   const tabs = document.querySelectorAll(".right-tabs span[data-tab]");
   const notesPanel = $("notes-panel");
   const versebankPanel = $("versebank-panel");
+  const insightsPanel = $("insights-panel");
   if (!tabs.length || !notesPanel || !versebankPanel) return;
 
   tabs.forEach((tab) => {
@@ -758,12 +842,17 @@ function bindRightSidebarTabs() {
       tab.classList.add("active");
 
       const target = tab.dataset.tab;
+      notesPanel.classList.add("hidden");
+      versebankPanel.classList.add("hidden");
+      if (insightsPanel) insightsPanel.classList.add("hidden");
+
       if (target === "notes") {
         notesPanel.classList.remove("hidden");
-        versebankPanel.classList.add("hidden");
-      } else {
-        notesPanel.classList.add("hidden");
+      } else if (target === "versebank") {
         versebankPanel.classList.remove("hidden");
+      } else if (target === "insights" && insightsPanel) {
+        insightsPanel.classList.remove("hidden");
+        renderInsightsPanel();
       }
     });
   });
@@ -1148,7 +1237,7 @@ function bindEvents() {
     els.editor.addEventListener("input", () => markDirty("Unsaved changes"));
   }
   if (els.notes) {
-    els.notes.addEventListener("input", () => markDirty("Unsaved notes"));
+    els.notes.addEventListener("input", () => { markDirty("Unsaved notes"); debounceInsightsRefresh(); });
   }
   if (els.docTitle) {
     els.docTitle.addEventListener("input", () => markDirty("Unsaved title"));
@@ -1216,30 +1305,78 @@ function bindEvents() {
     event.returnValue = "";
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeTemplateStudio();
-    if (event.key === "Escape") closeShortcutsModal();
-    if (event.key === "Escape") closeSettingsPanel();
-    if ((event.ctrlKey || event.metaKey) && event.key === "s") {
+    const ctrl = event.ctrlKey || event.metaKey;
+    const shift = event.shiftKey;
+    const alt = event.altKey;
+    const key = event.key;
+
+    if (key === "Escape") closeTemplateStudio();
+    if (key === "Escape") closeShortcutsModal();
+    if (key === "Escape") closeSettingsPanel();
+
+    // --- Ecosystem shortcuts ---
+
+    // Ctrl+Shift+S — Ecosystem Sync
+    if (ctrl && shift && key.toLowerCase() === "s") {
+      event.preventDefault();
+      if (window.BibleEcosystem && typeof window.BibleEcosystem.sync === "function") {
+        showToast("Syncing ecosystem...");
+        window.BibleEcosystem.sync().then(function (result) {
+          if (result && result.synced) {
+            showToast("Ecosystem synced successfully.");
+          } else {
+            showToast("Sync unavailable.");
+          }
+        }).catch(function () {
+          showToast("Ecosystem sync failed.");
+        });
+      } else {
+        showToast("Ecosystem sync not available.");
+      }
+      return;
+    }
+
+    // Ctrl+/ — Show keyboard shortcuts help
+    if (ctrl && !shift && !alt && key === "/") {
+      event.preventDefault();
+      toggleShortcutsModal();
+      return;
+    }
+
+    // Alt+S — Toggle study session
+    if (alt && !ctrl && !shift && (key === "s" || key === "S")) {
+      event.preventDefault();
+      const activeSession = getActiveSession();
+      if (activeSession) {
+        endStudySession();
+      } else {
+        startStudySession();
+      }
+      return;
+    }
+
+    // --- Existing app shortcuts ---
+    if (ctrl && !shift && key === "s") {
       event.preventDefault();
       saveCurrent();
     }
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "n") {
+    if (ctrl && !shift && key.toLowerCase() === "n") {
       event.preventDefault();
       newDocument();
     }
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "e") {
+    if (ctrl && !shift && key.toLowerCase() === "e") {
       event.preventDefault();
       exportTxt();
     }
-    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "d") {
+    if (ctrl && shift && key.toLowerCase() === "d") {
       event.preventDefault();
       duplicateCurrentDocument();
     }
-    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "r") {
+    if (ctrl && shift && key.toLowerCase() === "r") {
       event.preventDefault();
       resolveReferencesInEditor();
     }
-    if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key === "/") {
+    if (!ctrl && !alt && key === "/") {
       const targetTag = event.target?.tagName?.toLowerCase();
       const isTypingTarget = targetTag === "input" || targetTag === "textarea" || event.target?.isContentEditable;
       if (isTypingTarget) return;
@@ -1247,7 +1384,7 @@ function bindEvents() {
       els.verseQuery?.focus();
       els.verseQuery?.select();
     }
-    if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key === "?") {
+    if (!ctrl && !alt && key === "?") {
       const targetTag = event.target?.tagName?.toLowerCase();
       const isTypingTarget = targetTag === "input" || targetTag === "textarea" || event.target?.isContentEditable;
       if (isTypingTarget) return;
@@ -1338,6 +1475,7 @@ function lookupVerse() {
 
   state.currentLookupRef = passage.anchorRef;
   pushRecentVerse(passage.anchorRef);
+  addTrailEntry(passage.anchorRef);
   renderCrossRefs();
   updateReadPanel();
 
@@ -2350,3 +2488,559 @@ function escapeHtml(value) {
 function safeFilename(value) {
   return value.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase();
 }
+
+/* ============================================================
+   STUDY SESSIONS - Lightweight session tracking
+   ============================================================ */
+
+function getStudySessions() {
+  try {
+    return JSON.parse(localStorage.getItem(SESSIONS_KEY) || "[]");
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveStudySessions(sessions) {
+  localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+}
+
+function getActiveSessionId() {
+  return localStorage.getItem(ACTIVE_SESSION_KEY) || null;
+}
+
+function getActiveSession() {
+  const id = getActiveSessionId();
+  if (!id) return null;
+  return getStudySessions().find(function (s) { return s.id === id; }) || null;
+}
+
+function startStudySession() {
+  const docTitle = (els.docTitle.value.trim() || "Untitled").slice(0, 60);
+  const dateStr = new Date().toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+  const sessionTitle = "Writing: " + docTitle + " \u2014 " + dateStr;
+  const id = "cww-sess-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
+  const now = new Date().toISOString();
+
+  // Extract verse refs from the current document
+  const docRefs = getDocumentVerseRefs();
+  const verses = docRefs.map(function (refStr) {
+    const m = refStr.match(/^(.+?)\s+(\d+):(\d+)/);
+    if (!m) return null;
+    return { bookName: m[1].trim(), chapter: parseInt(m[2], 10), verse: parseInt(m[3], 10) };
+  }).filter(function (v) { return v !== null; });
+
+  const session = {
+    id: id,
+    title: sessionTitle,
+    description: "",
+    verses: verses,
+    insightIds: [],
+    noteIds: [],
+    trail: [],
+    createdAt: now,
+    updatedAt: now
+  };
+
+  var sessions = getStudySessions();
+  sessions.unshift(session);
+  saveStudySessions(sessions.slice(0, 50));
+  localStorage.setItem(ACTIVE_SESSION_KEY, id);
+  renderSessionIndicator();
+  showToast("Session started");
+}
+
+function endStudySession() {
+  var session = getActiveSession();
+  if (session) {
+    session.updatedAt = new Date().toISOString();
+    var sessions = getStudySessions();
+    var idx = sessions.findIndex(function (s) { return s.id === session.id; });
+    if (idx >= 0) sessions[idx] = session;
+    saveStudySessions(sessions);
+  }
+  localStorage.removeItem(ACTIVE_SESSION_KEY);
+  renderSessionIndicator();
+  showToast("Session ended");
+}
+
+function addTrailEntry(verseRef) {
+  var session = getActiveSession();
+  if (!session) return;
+  var m = verseRef.match(/^(.+?)\s+(\d+):(\d+)/);
+  if (!m) return;
+  var entry = {
+    ref: { bookName: m[1].trim(), chapter: parseInt(m[2], 10), verse: parseInt(m[3], 10) },
+    timestamp: new Date().toISOString(),
+    source: "cww",
+    action: "lookup"
+  };
+  session.trail.push(entry);
+  session.updatedAt = new Date().toISOString();
+  var sessions = getStudySessions();
+  var idx = sessions.findIndex(function (s) { return s.id === session.id; });
+  if (idx >= 0) sessions[idx] = session;
+  saveStudySessions(sessions);
+}
+
+function renderSessionIndicator() {
+  var bar = document.getElementById("session-indicator");
+  if (!bar) return;
+  var session = getActiveSession();
+  if (session) {
+    bar.innerHTML =
+      '<span class="session-indicator-dot"></span>' +
+      '<span class="session-indicator-title">' + escapeHtml(session.title) + '</span>' +
+      '<button class="session-end-btn" id="session-end-btn" type="button">End</button>';
+    bar.classList.add("active");
+    bar.classList.remove("inactive");
+    document.getElementById("session-end-btn").addEventListener("click", endStudySession);
+  } else {
+    bar.innerHTML = '<a class="session-start-link" id="session-start-link" href="#">Start Writing Session</a>';
+    bar.classList.remove("active");
+    bar.classList.add("inactive");
+    document.getElementById("session-start-link").addEventListener("click", function (e) {
+      e.preventDefault();
+      startStudySession();
+    });
+  }
+}
+
+/* ============================================================
+   INSIGHTS PANEL - Ecosystem insights matching
+   ============================================================ */
+
+let insightsRefreshTimer = null;
+
+function getDocumentVerseRefs() {
+  const refs = [];
+  const blocks = document.querySelectorAll("#structured-editor .block-content");
+  const notesText = els.notes ? els.notes.value : "";
+  let allText = notesText;
+
+  blocks.forEach((block) => {
+    allText += " " + (block.innerText || "");
+  });
+
+  // Extract [[Book Ch:V]] tokens
+  const tokenRe = /\[\[(.+?)\]\]/g;
+  let match;
+  while ((match = tokenRe.exec(allText)) !== null) {
+    const ref = match[1].trim();
+    if (/^([1-3]\s*)?[a-zA-Z. ]+\s+\d+:\d+/.test(ref)) {
+      refs.push(ref);
+    }
+  }
+
+  // Extract bare "Book Ch:V" patterns
+  const inlineRe = /\b([1-3]?\s?[A-Z][a-z]+(?:\s+of\s+[A-Z][a-z]+)?)\s+(\d+):(\d+)\b/g;
+  while ((match = inlineRe.exec(allText)) !== null) {
+    const ref = match[0].trim();
+    if (refs.indexOf(ref) === -1) refs.push(ref);
+  }
+
+  return refs;
+}
+
+function getDocumentThemeWords() {
+  const blocks = document.querySelectorAll("#structured-editor .block-content");
+  const notesText = els.notes ? els.notes.value : "";
+  let allText = notesText;
+
+  blocks.forEach((block) => {
+    allText += " " + (block.innerText || "");
+  });
+
+  // Extract meaningful words (4+ chars, lowercase)
+  const words = allText
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 4);
+
+  return [...new Set(words)];
+}
+
+function normalizeVerseForMatch(ref) {
+  return String(ref || "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function scoreInsight(insight, docVerseRefs, docWords) {
+  let score = 0;
+
+  // Normalize document verse refs for comparison
+  const normalizedDocRefs = docVerseRefs.map(normalizeVerseForMatch);
+
+  // Check verse overlap
+  if (Array.isArray(insight.verses)) {
+    insight.verses.forEach((v) => {
+      const insightRef = normalizeVerseForMatch(
+        (v.bookName || "") + " " + v.chapter + ":" + v.verse
+      );
+      if (normalizedDocRefs.some((dr) => dr === insightRef)) {
+        score += 10;
+      }
+    });
+  }
+
+  // Check theme overlap
+  if (Array.isArray(insight.themes)) {
+    insight.themes.forEach((theme) => {
+      const themeLower = theme.toLowerCase();
+      if (docWords.some((w) => themeLower.includes(w) || w.includes(themeLower))) {
+        score += 3;
+      }
+    });
+  }
+
+  // Check title/description word overlap
+  const titleWords = (insight.title || "").toLowerCase().split(/\s+/).filter((w) => w.length >= 4);
+  titleWords.forEach((tw) => {
+    if (docWords.includes(tw)) score += 1;
+  });
+
+  return score;
+}
+
+function renderInsightsPanel() {
+  const listEl = $("insights-list");
+  const emptyEl = $("insights-empty");
+  if (!listEl) return;
+
+  const allInsights = window.BibleEcosystem ? window.BibleEcosystem.readEcoInsights() : [];
+
+  if (allInsights.length === 0) {
+    listEl.innerHTML = "";
+    if (emptyEl) emptyEl.classList.remove("hidden");
+    return;
+  }
+
+  const docVerseRefs = getDocumentVerseRefs();
+  const docWords = getDocumentThemeWords();
+
+  // Score and sort insights by relevance
+  const scored = allInsights.map((ins) => ({
+    insight: ins,
+    score: scoreInsight(ins, docVerseRefs, docWords)
+  }));
+
+  // Show all with score > 0 first, then up to 5 others
+  scored.sort((a, b) => b.score - a.score);
+
+  const relevant = scored.filter((s) => s.score > 0);
+  const others = scored.filter((s) => s.score === 0).slice(0, 5);
+  const toShow = relevant.concat(others).slice(0, 15);
+
+  if (toShow.length === 0) {
+    listEl.innerHTML = "";
+    if (emptyEl) emptyEl.classList.remove("hidden");
+    return;
+  }
+
+  if (emptyEl) emptyEl.classList.add("hidden");
+  listEl.innerHTML = "";
+
+  toShow.forEach(({ insight, score }) => {
+    const card = document.createElement("div");
+    card.className = "insight-card" + (score > 0 ? " insight-relevant" : "");
+
+    const confidenceLabel = {
+      personal: "Personal",
+      supported: "Supported",
+      established: "Established"
+    }[insight.confidence] || "Personal";
+
+    const sourceLabel = {
+      bte: "Thought Engine",
+      bd: "Bible Desk",
+      sd: "Study Desk",
+      cww: "CWW"
+    }[insight.source] || insight.source || "";
+
+    const verseCount = Array.isArray(insight.verses) ? insight.verses.length : 0;
+    const themeList = Array.isArray(insight.themes) ? insight.themes.slice(0, 3).join(", ") : "";
+    const descSnippet = (insight.description || "").length > 100
+      ? insight.description.slice(0, 100) + "..."
+      : (insight.description || "");
+
+    card.innerHTML =
+      '<div class="insight-card-header">' +
+        '<span class="insight-title">' + escapeHtml(insight.title || "Untitled") + '</span>' +
+        '<span class="insight-confidence insight-conf-' + (insight.confidence || "personal") + '">' + confidenceLabel + '</span>' +
+      '</div>' +
+      '<p class="insight-desc">' + escapeHtml(descSnippet) + '</p>' +
+      '<div class="insight-meta">' +
+        (verseCount > 0 ? '<span class="insight-verses-count">' + verseCount + ' verse' + (verseCount !== 1 ? 's' : '') + '</span>' : '') +
+        (themeList ? '<span class="insight-themes">' + escapeHtml(themeList) + '</span>' : '') +
+        (sourceLabel ? '<span class="insight-source">' + escapeHtml(sourceLabel) + '</span>' : '') +
+      '</div>' +
+      (verseCount > 0 ? '<button class="insight-insert-btn" title="Insert verse references as [[tokens]]">Insert Verses</button>' : '');
+
+    // Bind insert button
+    const insertBtn = card.querySelector(".insight-insert-btn");
+    if (insertBtn && Array.isArray(insight.verses)) {
+      insertBtn.addEventListener("click", () => {
+        const tokens = insight.verses.map((v) => {
+          const bookName = v.bookName || "";
+          return "[[" + bookName + " " + v.chapter + ":" + v.verse + "]]";
+        });
+        const tokenStr = tokens.join(" ");
+        const target = state.lastFocusedBlock || document.querySelector("#structured-editor .block-content");
+        if (target) {
+          const text = target.innerText;
+          target.innerText = text ? text + " " + tokenStr : tokenStr;
+          syncBlocksToTextarea();
+          debounceAutoResolve();
+        } else {
+          insertTextIntoEditor(tokenStr);
+        }
+        markDirty("Inserted verses from insight: " + (insight.title || ""));
+      });
+    }
+
+    listEl.appendChild(card);
+  });
+}
+
+function debounceInsightsRefresh() {
+  clearTimeout(insightsRefreshTimer);
+  insightsRefreshTimer = setTimeout(() => {
+    const insightsPanel = $("insights-panel");
+    if (insightsPanel && !insightsPanel.classList.contains("hidden")) {
+      renderInsightsPanel();
+    }
+  }, 1200);
+}
+
+/* ============================================================
+   COMMAND PALETTE (Ctrl+K)
+   ============================================================ */
+
+(function initCommandPalette() {
+  let cmdActiveIndex = 0;
+  let cmdFiltered = [];
+
+  function getCommandList() {
+    return [
+      // --- App commands ---
+      { label: "New Document", desc: "Create a new document", group: "Document", run: newDocument },
+      { label: "Save Document", desc: "Save current document", group: "Document", run: () => saveCurrent() },
+      { label: "Duplicate Document", desc: "Clone current document", group: "Document", run: duplicateCurrentDocument },
+      { label: "Export .txt", desc: "Export document as text file", group: "Document", run: exportTxt },
+      { label: "Print", desc: "Print current document", group: "Document", run: () => window.print() },
+      { label: "Insert Verse", desc: "Focus verse search to insert a verse", group: "Writing", run: () => {
+        const q = document.getElementById("verse-query");
+        if (q) { q.focus(); q.select(); }
+      }},
+      { label: "Resolve [[Verses]]", desc: "Resolve verse references in editor", group: "Writing", run: resolveReferencesInEditor },
+      // --- Ecosystem commands ---
+      { label: "Sync Ecosystem", desc: "Sync data across Bible Ecosystem apps", group: "Ecosystem", run: () => {
+        if (window.BibleEcosystem && typeof window.BibleEcosystem.sync === "function") {
+          showToast("Syncing ecosystem...");
+          window.BibleEcosystem.sync().then(function (r) {
+            if (r && r.synced) showToast("Ecosystem synced.");
+            else showToast("Sync unavailable.");
+          }).catch(function () { showToast("Ecosystem sync failed."); });
+        } else { showToast("Ecosystem sync not available."); }
+      }},
+      { label: "Open in Bible Desk", desc: "Open verse in Bible Desk", group: "Ecosystem", run: () => {
+        if (window.BibleEcosystem && window.BibleEcosystem.openInBibleDesk) {
+          window.BibleEcosystem.openInBibleDesk("");
+        } else { showToast("Ecosystem not available."); }
+      }},
+      { label: "Open in Study Desk", desc: "Open verse in Study Desk", group: "Ecosystem", run: () => {
+        if (window.BibleEcosystem && window.BibleEcosystem.openInStudyDesk) {
+          window.BibleEcosystem.openInStudyDesk("");
+        } else { showToast("Ecosystem not available."); }
+      }},
+      { label: "Open in Bible Engine", desc: "Open verse in Bible Thought Engine", group: "Ecosystem", run: () => {
+        try {
+          const url = "bible-study-engine://open";
+          window.open(url, "_blank");
+        } catch { showToast("Could not open Bible Engine."); }
+      }},
+      { label: "Open in Writing Workspace", desc: "You are already here", group: "Ecosystem", run: () => { showToast("You are already in the Writing Workspace."); }},
+      // --- Session ---
+      { label: "Start Session", desc: "Start a new study session", group: "Session", run: () => {
+        const active = getActiveSession();
+        if (active) { showToast("A session is already active."); }
+        else { startStudySession(); }
+      }},
+      { label: "End Session", desc: "End the current study session", group: "Session", run: () => {
+        const active = getActiveSession();
+        if (active) { endStudySession(); }
+        else { showToast("No active session."); }
+      }},
+      // --- App settings ---
+      { label: "Show Keyboard Shortcuts", desc: "View all keyboard shortcuts", group: "App", run: toggleShortcutsModal },
+      { label: "Open Settings", desc: "Open theme and settings panel", group: "App", run: () => {
+        const panel = document.getElementById("settings-panel");
+        const backdrop = document.getElementById("settings-backdrop");
+        if (panel) panel.classList.remove("hidden");
+        if (backdrop) backdrop.classList.remove("hidden");
+      }},
+    ];
+  }
+
+  function fuzzyMatch(query, text) {
+    if (!query) return true;
+    return text.toLowerCase().includes(query.toLowerCase());
+  }
+
+  function renderCmdList() {
+    const paletteList = document.getElementById("cmd-palette-list");
+    const input = document.getElementById("cmd-palette-input");
+    if (!paletteList || !input) return;
+    const q = input.value.trim();
+    const all = getCommandList();
+    cmdFiltered = all.filter(function (c) {
+      return fuzzyMatch(q, c.label) || fuzzyMatch(q, c.desc || "") || fuzzyMatch(q, c.group || "");
+    });
+    // Add verse-like results
+    if (q.length >= 2) {
+      const refMatch = q.match(/^(\d?\s*[a-zA-Z]+(?:\s+[a-zA-Z]+)*)\s*(\d+)?(?::(\d+))?$/);
+      if (refMatch) {
+        cmdFiltered.push({
+          label: "Search Bible: " + q,
+          desc: "Look up " + q + " in verse search",
+          group: "Verse",
+          run: function () {
+            const vq = document.getElementById("verse-query");
+            if (vq) { vq.value = q; vq.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); }
+          }
+        });
+      }
+    }
+    cmdFiltered = cmdFiltered.slice(0, 12);
+    cmdActiveIndex = 0;
+    paletteList.innerHTML = "";
+    if (!cmdFiltered.length) {
+      paletteList.innerHTML = '<div class="cmd-palette-empty">No matching commands</div>';
+      return;
+    }
+    let lastGroup = "";
+    cmdFiltered.forEach(function (entry, idx) {
+      if (entry.group !== lastGroup) {
+        lastGroup = entry.group;
+        const header = document.createElement("div");
+        header.className = "cmd-palette-group";
+        header.textContent = entry.group;
+        paletteList.appendChild(header);
+      }
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "cmd-palette-item" + (idx === 0 ? " active" : "");
+      btn.dataset.idx = String(idx);
+      btn.innerHTML = '<span class="cmd-palette-item-label">' + escapeHtml(entry.label) + '</span>' +
+        (entry.desc ? '<span class="cmd-palette-item-desc">' + escapeHtml(entry.desc) + '</span>' : '');
+      btn.addEventListener("click", function () {
+        closeCmdPalette();
+        entry.run();
+      });
+      btn.addEventListener("mouseenter", function () {
+        cmdActiveIndex = idx;
+        updateCmdActive();
+      });
+      paletteList.appendChild(btn);
+    });
+    // Footer
+    const footer = document.createElement("div");
+    footer.className = "cmd-palette-footer";
+    footer.innerHTML = '<span><kbd>&uarr;&darr;</kbd> navigate</span><span><kbd>&crarr;</kbd> select</span><span><kbd>esc</kbd> close</span>';
+    paletteList.appendChild(footer);
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function updateCmdActive() {
+    const paletteList = document.getElementById("cmd-palette-list");
+    if (!paletteList) return;
+    const items = paletteList.querySelectorAll(".cmd-palette-item");
+    items.forEach(function (item, i) {
+      item.classList.toggle("active", i === cmdActiveIndex);
+    });
+    const active = items[cmdActiveIndex];
+    if (active) active.scrollIntoView({ block: "nearest" });
+  }
+
+  function openCmdPalette() {
+    const palette = document.getElementById("command-palette");
+    const backdrop = document.getElementById("command-palette-backdrop");
+    const input = document.getElementById("cmd-palette-input");
+    if (!palette) return;
+    palette.classList.remove("hidden");
+    if (backdrop) backdrop.classList.remove("hidden");
+    if (input) { input.value = ""; input.focus(); }
+    renderCmdList();
+  }
+
+  function closeCmdPalette() {
+    const palette = document.getElementById("command-palette");
+    const backdrop = document.getElementById("command-palette-backdrop");
+    if (palette) palette.classList.add("hidden");
+    if (backdrop) backdrop.classList.add("hidden");
+  }
+
+  function isCmdPaletteOpen() {
+    const palette = document.getElementById("command-palette");
+    return palette && !palette.classList.contains("hidden");
+  }
+
+  // Wire up events
+  document.addEventListener("DOMContentLoaded", function () {
+    const input = document.getElementById("cmd-palette-input");
+    const backdrop = document.getElementById("command-palette-backdrop");
+    if (input) {
+      input.addEventListener("input", renderCmdList);
+      input.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          closeCmdPalette();
+          return;
+        }
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          cmdActiveIndex = Math.min(cmdActiveIndex + 1, cmdFiltered.length - 1);
+          updateCmdActive();
+          return;
+        }
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
+          cmdActiveIndex = Math.max(cmdActiveIndex - 1, 0);
+          updateCmdActive();
+          return;
+        }
+        if (event.key === "Enter") {
+          event.preventDefault();
+          if (cmdFiltered[cmdActiveIndex]) {
+            closeCmdPalette();
+            cmdFiltered[cmdActiveIndex].run();
+          }
+        }
+      });
+    }
+    if (backdrop) {
+      backdrop.addEventListener("click", closeCmdPalette);
+    }
+  });
+
+  // Global Ctrl+K handler
+  document.addEventListener("keydown", function (event) {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      if (isCmdPaletteOpen()) closeCmdPalette();
+      else openCmdPalette();
+      return;
+    }
+    // Escape closes the palette if open
+    if (event.key === "Escape" && isCmdPaletteOpen()) {
+      closeCmdPalette();
+    }
+  });
+
+  // Expose for external use
+  window.openCommandPalette = openCmdPalette;
+  window.closeCommandPalette = closeCmdPalette;
+})();
