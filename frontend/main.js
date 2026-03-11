@@ -753,6 +753,7 @@ function bindOverflowMenu() {
       case "pin": togglePinCurrentDocument(); break;
       case "copy": copyWritingAndNotes(); break;
       case "import": promptImportTxt(); break;
+      case "import-ecosystem": openEcoImportModal(); break;
       case "export": exportTxt(); break;
       case "bulk-export": bulkExportDocuments(); break;
       case "print": printView(); break;
@@ -2813,6 +2814,637 @@ function debounceInsightsRefresh() {
 }
 
 /* ============================================================
+   IMPORT FROM ECOSYSTEM - Study Sessions, Insights, Verses
+   ============================================================ */
+
+(function initEcoImport() {
+  let _ecoImportSource = "sessions";
+  let _ecoSharedData = null;
+  let _ecoSelectedVerses = {};
+  let _ecoPreviewContent = "";
+
+  function getEcoSharedData() {
+    // Read from ecosystem adapter's local storage caches
+    var sessions = [];
+    var insights = [];
+    var recentVerses = [];
+
+    if (window.BibleEcosystem) {
+      try { sessions = window.BibleEcosystem.readSessions() || []; } catch (e) { /* empty */ }
+      try { insights = window.BibleEcosystem.readEcoInsights() || []; } catch (e) { /* empty */ }
+    }
+
+    // Read recent verses from CWW's own storage
+    try {
+      recentVerses = JSON.parse(localStorage.getItem("cww.recentVerses.v1") || "[]");
+    } catch (e) { /* empty */ }
+
+    return { sessions: sessions, insights: insights, recentVerses: recentVerses };
+  }
+
+  function formatVerseRef(v) {
+    if (!v) return "";
+    if (typeof v === "string") return v;
+    var bookName = v.bookName || v.name || "";
+    if (v.bookId && !bookName) {
+      // Try to resolve from canonical list
+      bookName = (typeof canonicalBooks !== "undefined" && canonicalBooks[v.bookId - 1]) || "Book " + v.bookId;
+    }
+    return bookName + " " + v.chapter + ":" + v.verse;
+  }
+
+  function formatTrailRef(entry) {
+    if (!entry || !entry.ref) return "";
+    return formatVerseRef(entry.ref);
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return "";
+    try {
+      var d = new Date(dateStr);
+      return d.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  function lookupVerseText(refStr) {
+    if (!refStr) return "";
+    // Use the app's bible data if loaded
+    if (typeof state !== "undefined" && state.bibleByRef) {
+      var normalized = refStr.replace(/\s+/g, " ").trim();
+      var text = state.bibleByRef.get(normalized);
+      if (text) return text;
+    }
+    return "";
+  }
+
+  // ─── Generate outline from a study session ─────────────────
+
+  function generateSessionOutline(session) {
+    var lines = [];
+    lines.push("# " + (session.title || "Study Session"));
+    lines.push("");
+
+    // Key Verses
+    if (Array.isArray(session.verses) && session.verses.length > 0) {
+      lines.push("## Key Verses");
+      session.verses.forEach(function (v) {
+        var ref = formatVerseRef(v);
+        var text = lookupVerseText(ref);
+        if (text) {
+          lines.push("- " + ref + " — " + text);
+        } else {
+          lines.push("- " + ref);
+        }
+      });
+      lines.push("");
+    }
+
+    // Study Trail
+    if (Array.isArray(session.trail) && session.trail.length > 0) {
+      lines.push("## Study Trail");
+      session.trail.forEach(function (entry, idx) {
+        var ref = formatTrailRef(entry);
+        var action = entry.action || "visited";
+        var source = entry.source || "";
+        var desc = ref;
+        if (source && source !== "cww") desc += " (" + source + ")";
+        lines.push((idx + 1) + ". " + desc);
+      });
+      lines.push("");
+    }
+
+    // Insights
+    var data = _ecoSharedData || getEcoSharedData();
+    if (Array.isArray(session.insightIds) && session.insightIds.length > 0 && Array.isArray(data.insights)) {
+      var matchedInsights = session.insightIds.map(function (iid) {
+        return data.insights.find(function (ins) { return ins.id === iid; });
+      }).filter(Boolean);
+      if (matchedInsights.length > 0) {
+        lines.push("## Insights");
+        matchedInsights.forEach(function (ins) {
+          lines.push("- " + (ins.title || ins.text || ins.description || "Untitled insight"));
+          if (ins.description && ins.title) {
+            lines.push("  " + ins.description);
+          }
+        });
+        lines.push("");
+      }
+    }
+
+    // Notes
+    if (Array.isArray(session.noteIds) && session.noteIds.length > 0) {
+      lines.push("## Notes");
+      session.noteIds.forEach(function (nid) {
+        lines.push("- [Note: " + nid + "]");
+      });
+      lines.push("");
+    }
+
+    // Empty sections for the writer
+    lines.push("## Reflection");
+    lines.push("[Write your reflection here]");
+    lines.push("");
+    lines.push("## Application");
+    lines.push("[How will you apply what you studied?]");
+    lines.push("");
+
+    return lines.join("\n");
+  }
+
+  // ─── Generate outline from an insight ─────────────────
+
+  function generateInsightOutline(insight) {
+    var lines = [];
+    lines.push("# Exploring: " + (insight.title || "Untitled Insight"));
+    lines.push("");
+
+    // Supporting Verses
+    if (Array.isArray(insight.verses) && insight.verses.length > 0) {
+      lines.push("## Supporting Verses");
+      insight.verses.forEach(function (v) {
+        var ref = formatVerseRef(v);
+        var text = lookupVerseText(ref);
+        if (text) {
+          lines.push("- " + ref + " — " + text);
+        } else {
+          lines.push("- " + ref);
+        }
+      });
+      lines.push("");
+    }
+
+    // The Insight
+    lines.push("## The Insight");
+    var insightText = insight.description || insight.text || insight.content || "";
+    if (insightText) {
+      lines.push(insightText);
+    } else {
+      lines.push("[Insight text]");
+    }
+    lines.push("");
+
+    // Themes
+    if (Array.isArray(insight.themes) && insight.themes.length > 0) {
+      lines.push("## Themes");
+      lines.push(insight.themes.join(", "));
+      lines.push("");
+    }
+
+    // Empty section for writer
+    lines.push("## Your Reflection");
+    lines.push("[Write your reflection here]");
+    lines.push("");
+
+    return lines.join("\n");
+  }
+
+  // ─── Generate devotional from selected verses ─────────────
+
+  function generateVersesOutline(verseRefs) {
+    var lines = [];
+    lines.push("# Devotional");
+    lines.push("");
+    lines.push("## Scripture");
+
+    verseRefs.forEach(function (ref) {
+      var text = lookupVerseText(ref);
+      if (text) {
+        lines.push("");
+        lines.push("> " + ref);
+        lines.push("> " + text);
+      } else {
+        lines.push("- " + ref);
+      }
+    });
+    lines.push("");
+
+    lines.push("## Observation");
+    lines.push("[What do you observe in these verses?]");
+    lines.push("");
+    lines.push("## Reflection");
+    lines.push("[What does this mean for your life?]");
+    lines.push("");
+    lines.push("## Application");
+    lines.push("[How will you respond?]");
+    lines.push("");
+    lines.push("## Prayer");
+    lines.push("[Write your prayer here]");
+    lines.push("");
+
+    return lines.join("\n");
+  }
+
+  // ─── Render list of items based on selected source ─────────
+
+  function renderImportList() {
+    var listEl = document.getElementById("eco-import-list");
+    var previewWrap = document.getElementById("eco-import-preview-wrap");
+    if (!listEl) return;
+    if (previewWrap) previewWrap.classList.add("hidden");
+
+    _ecoSharedData = getEcoSharedData();
+    _ecoSelectedVerses = {};
+
+    if (_ecoImportSource === "sessions") {
+      renderSessionsList(listEl);
+    } else if (_ecoImportSource === "insights") {
+      renderInsightsList(listEl);
+    } else if (_ecoImportSource === "verses") {
+      renderVersesList(listEl);
+    }
+  }
+
+  function renderSessionsList(listEl) {
+    var sessions = _ecoSharedData.sessions || [];
+    if (sessions.length === 0) {
+      listEl.innerHTML = '<p class="muted eco-import-empty">No study sessions found. Sync ecosystem data to import sessions from other apps.</p>';
+      return;
+    }
+
+    // Sort by most recent
+    sessions.sort(function (a, b) {
+      return (b.updatedAt || b.createdAt || "").localeCompare(a.updatedAt || a.createdAt || "");
+    });
+
+    listEl.innerHTML = "";
+    sessions.slice(0, 20).forEach(function (session) {
+      var card = document.createElement("button");
+      card.type = "button";
+      card.className = "eco-import-item";
+
+      var verseCount = Array.isArray(session.verses) ? session.verses.length : 0;
+      var trailCount = Array.isArray(session.trail) ? session.trail.length : 0;
+      var date = formatDate(session.updatedAt || session.createdAt);
+
+      card.innerHTML =
+        '<div class="eco-import-item-title">' + escapeHtml(session.title || "Untitled Session") + '</div>' +
+        '<div class="eco-import-item-meta">' +
+          '<span>' + date + '</span>' +
+          '<span>' + verseCount + ' verse' + (verseCount !== 1 ? 's' : '') + '</span>' +
+          (trailCount > 0 ? '<span>' + trailCount + ' trail entries</span>' : '') +
+        '</div>';
+
+      card.addEventListener("click", function () {
+        var outline = generateSessionOutline(session);
+        showImportPreview(outline, session.title || "Study Session Outline");
+      });
+
+      listEl.appendChild(card);
+    });
+  }
+
+  function renderInsightsList(listEl) {
+    var insights = _ecoSharedData.insights || [];
+    if (insights.length === 0) {
+      listEl.innerHTML = '<p class="muted eco-import-empty">No insights found. Sync ecosystem data to import insights from other apps.</p>';
+      return;
+    }
+
+    // Sort by most recent
+    insights.sort(function (a, b) {
+      return (b.updatedAt || b.createdAt || "").localeCompare(a.updatedAt || a.createdAt || "");
+    });
+
+    listEl.innerHTML = "";
+    insights.slice(0, 20).forEach(function (insight) {
+      var card = document.createElement("button");
+      card.type = "button";
+      card.className = "eco-import-item";
+
+      var verseCount = Array.isArray(insight.verses) ? insight.verses.length : 0;
+      var descSnippet = (insight.description || insight.text || insight.content || "").slice(0, 80);
+      if (descSnippet.length === 80) descSnippet += "...";
+      var confidenceLabel = { personal: "Personal", supported: "Supported", established: "Established" }[insight.confidence] || "";
+      var sourceLabel = { bte: "Thought Engine", bd: "Bible Desk", sd: "Study Desk", cww: "CWW" }[insight.source] || insight.source || "";
+
+      card.innerHTML =
+        '<div class="eco-import-item-title">' + escapeHtml(insight.title || "Untitled Insight") + '</div>' +
+        (descSnippet ? '<div class="eco-import-item-desc">' + escapeHtml(descSnippet) + '</div>' : '') +
+        '<div class="eco-import-item-meta">' +
+          (confidenceLabel ? '<span class="eco-import-badge">' + confidenceLabel + '</span>' : '') +
+          (verseCount > 0 ? '<span>' + verseCount + ' verse' + (verseCount !== 1 ? 's' : '') + '</span>' : '') +
+          (sourceLabel ? '<span>' + sourceLabel + '</span>' : '') +
+        '</div>';
+
+      card.addEventListener("click", function () {
+        var outline = generateInsightOutline(insight);
+        showImportPreview(outline, "Exploring: " + (insight.title || "Insight"));
+      });
+
+      listEl.appendChild(card);
+    });
+  }
+
+  function renderVersesList(listEl) {
+    var verses = _ecoSharedData.recentVerses || [];
+    if (verses.length === 0) {
+      listEl.innerHTML = '<p class="muted eco-import-empty">No recent verses found. Look up verses or sync ecosystem data.</p>';
+      return;
+    }
+
+    _ecoSelectedVerses = {};
+    listEl.innerHTML = "";
+
+    // Header with select/generate instructions
+    var header = document.createElement("div");
+    header.className = "eco-import-verses-header";
+    header.innerHTML = '<span class="muted">Select verses to include in your devotional outline:</span>';
+    listEl.appendChild(header);
+
+    verses.forEach(function (ref, idx) {
+      var refStr = typeof ref === "string" ? ref : formatVerseRef(ref);
+      if (!refStr) return;
+
+      var item = document.createElement("label");
+      item.className = "eco-import-verse-item";
+
+      var checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.dataset.ref = refStr;
+      checkbox.dataset.idx = String(idx);
+      checkbox.addEventListener("change", function () {
+        if (this.checked) {
+          _ecoSelectedVerses[refStr] = true;
+        } else {
+          delete _ecoSelectedVerses[refStr];
+        }
+        updateVersesGenerateBtn();
+      });
+
+      var text = lookupVerseText(refStr);
+      var label = document.createElement("span");
+      label.className = "eco-import-verse-label";
+      if (text) {
+        label.innerHTML = '<strong>' + escapeHtml(refStr) + '</strong> — ' + escapeHtml(text.length > 80 ? text.slice(0, 80) + "..." : text);
+      } else {
+        label.innerHTML = '<strong>' + escapeHtml(refStr) + '</strong>';
+      }
+
+      item.appendChild(checkbox);
+      item.appendChild(label);
+      listEl.appendChild(item);
+    });
+
+    // Generate button
+    var btnWrap = document.createElement("div");
+    btnWrap.className = "eco-import-verses-actions";
+    var selectAllBtn = document.createElement("button");
+    selectAllBtn.type = "button";
+    selectAllBtn.className = "ghost-btn";
+    selectAllBtn.textContent = "Select All";
+    selectAllBtn.addEventListener("click", function () {
+      var checkboxes = listEl.querySelectorAll('input[type="checkbox"]');
+      var allChecked = Object.keys(_ecoSelectedVerses).length === checkboxes.length;
+      checkboxes.forEach(function (cb) {
+        cb.checked = !allChecked;
+        if (!allChecked) _ecoSelectedVerses[cb.dataset.ref] = true;
+        else delete _ecoSelectedVerses[cb.dataset.ref];
+      });
+      updateVersesGenerateBtn();
+    });
+
+    var generateBtn = document.createElement("button");
+    generateBtn.type = "button";
+    generateBtn.id = "eco-import-verses-gen-btn";
+    generateBtn.className = "primary-btn";
+    generateBtn.textContent = "Generate Outline (0)";
+    generateBtn.disabled = true;
+    generateBtn.addEventListener("click", function () {
+      var selected = Object.keys(_ecoSelectedVerses);
+      if (!selected.length) return;
+      var outline = generateVersesOutline(selected);
+      showImportPreview(outline, "Devotional from Verses");
+    });
+
+    btnWrap.appendChild(selectAllBtn);
+    btnWrap.appendChild(generateBtn);
+    listEl.appendChild(btnWrap);
+  }
+
+  function updateVersesGenerateBtn() {
+    var btn = document.getElementById("eco-import-verses-gen-btn");
+    if (!btn) return;
+    var count = Object.keys(_ecoSelectedVerses).length;
+    btn.textContent = "Generate Outline (" + count + ")";
+    btn.disabled = count === 0;
+  }
+
+  // ─── Preview ───────────────────────────────────
+
+  function showImportPreview(content, title) {
+    var listEl = document.getElementById("eco-import-list");
+    var previewWrap = document.getElementById("eco-import-preview-wrap");
+    var previewEl = document.getElementById("eco-import-preview");
+    var titleEl = document.getElementById("eco-import-title");
+
+    if (listEl) listEl.classList.add("hidden");
+    if (previewWrap) previewWrap.classList.remove("hidden");
+    if (titleEl) titleEl.textContent = title || "Preview";
+    if (previewEl) previewEl.textContent = content;
+
+    _ecoPreviewContent = content;
+  }
+
+  function hideImportPreview() {
+    var listEl = document.getElementById("eco-import-list");
+    var previewWrap = document.getElementById("eco-import-preview-wrap");
+    var titleEl = document.getElementById("eco-import-title");
+
+    if (listEl) listEl.classList.remove("hidden");
+    if (previewWrap) previewWrap.classList.add("hidden");
+    if (titleEl) titleEl.textContent = "Import from Ecosystem";
+    _ecoPreviewContent = "";
+  }
+
+  // ─── Create document from preview ──────────────
+
+  function confirmImport() {
+    if (!_ecoPreviewContent) return;
+
+    // Create a new document with the generated content
+    // First check if user wants to replace current
+    if (typeof state !== "undefined" && state.isDirty) {
+      var proceed = window.confirm("Create a new document with this outline? (Current unsaved changes will be discarded)");
+      if (!proceed) return;
+    }
+
+    // Extract title from first line
+    var lines = _ecoPreviewContent.split("\n");
+    var title = "Imported Outline";
+    for (var i = 0; i < lines.length; i++) {
+      if (lines[i].startsWith("# ")) {
+        title = lines[i].slice(2).trim();
+        break;
+      }
+    }
+
+    // Reset state for new document
+    if (typeof state !== "undefined") {
+      state.currentId = null;
+      state.currentTemplate = "";
+      state.lastFocusedBlock = null;
+      state.lastSavedAt = "";
+    }
+
+    var docTitleEl = document.getElementById("doc-title");
+    var editorEl = document.getElementById("editor");
+    var notesEl = document.getElementById("notes");
+    var templateSelect = document.getElementById("template-select");
+
+    if (docTitleEl) docTitleEl.value = title;
+    if (editorEl) editorEl.value = _ecoPreviewContent;
+    if (notesEl) notesEl.value = "";
+    if (templateSelect) templateSelect.value = "";
+
+    // Build structured blocks from the content
+    var structuredEditor = document.getElementById("structured-editor");
+    if (structuredEditor && typeof buildStructuredBlocks === "function") {
+      // Parse sections from content to build blocks
+      buildImportedBlocks(_ecoPreviewContent);
+    }
+
+    if (typeof switchFlowStep === "function") switchFlowStep("write");
+    if (typeof renderPrompts === "function") renderPrompts();
+    if (typeof renderTemplateStudio === "function") renderTemplateStudio();
+    if (typeof renderDocSelector === "function") renderDocSelector();
+    if (typeof updateWritingStats === "function") updateWritingStats();
+    if (typeof updateSaveMeta === "function") updateSaveMeta();
+    if (typeof markDirty === "function") markDirty("Imported from ecosystem");
+
+    closeEcoImportModal();
+    if (typeof showToast === "function") showToast("Outline imported as new document");
+  }
+
+  function buildImportedBlocks(content) {
+    var editorEl = document.getElementById("structured-editor");
+    if (!editorEl) return;
+    editorEl.innerHTML = "";
+
+    var sections = [];
+    var contentLines = content.split("\n");
+    var currentSection = null;
+
+    for (var i = 0; i < contentLines.length; i++) {
+      var line = contentLines[i];
+      if (line.startsWith("## ")) {
+        if (currentSection) sections.push(currentSection);
+        currentSection = { name: line.slice(3).trim(), content: "" };
+      } else if (line.startsWith("# ") && !currentSection) {
+        // Skip document title
+      } else if (currentSection) {
+        currentSection.content += line + "\n";
+      }
+    }
+    if (currentSection) sections.push(currentSection);
+
+    if (sections.length === 0) {
+      sections.push({ name: "Writing", content: content });
+    }
+
+    sections.forEach(function (section, idx) {
+      section.content = section.content.trim();
+      if (typeof createBlock === "function") {
+        var block = createBlock(section.name, section.content, "Write your " + section.name.toLowerCase() + "...", idx);
+        editorEl.appendChild(block);
+      }
+    });
+
+    if (typeof syncBlocksToTextarea === "function") syncBlocksToTextarea();
+  }
+
+  // ─── Modal open/close ──────────────────────────
+
+  function openEcoImportModal() {
+    var modal = document.getElementById("eco-import-modal");
+    var backdrop = document.getElementById("eco-import-backdrop");
+    if (!modal) return;
+
+    // First sync ecosystem data if possible
+    if (window.BibleEcosystem && typeof window.BibleEcosystem.sync === "function") {
+      window.BibleEcosystem.sync().then(function () {
+        renderImportList();
+      }).catch(function () {
+        renderImportList();
+      });
+    } else {
+      renderImportList();
+    }
+
+    modal.classList.remove("hidden");
+    if (backdrop) backdrop.classList.remove("hidden");
+  }
+
+  function closeEcoImportModal() {
+    var modal = document.getElementById("eco-import-modal");
+    var backdrop = document.getElementById("eco-import-backdrop");
+    if (modal) modal.classList.add("hidden");
+    if (backdrop) backdrop.classList.add("hidden");
+    hideImportPreview();
+  }
+
+  // ─── Bind events ──────────────────────────────
+
+  document.addEventListener("DOMContentLoaded", function () {
+    // Close button
+    var closeBtn = document.getElementById("eco-import-close-btn");
+    if (closeBtn) closeBtn.addEventListener("click", closeEcoImportModal);
+
+    // Backdrop click
+    var backdrop = document.getElementById("eco-import-backdrop");
+    if (backdrop) backdrop.addEventListener("click", closeEcoImportModal);
+
+    // Tab switching
+    var tabsContainer = document.getElementById("eco-import-tabs");
+    if (tabsContainer) {
+      tabsContainer.addEventListener("click", function (e) {
+        var tab = e.target.closest(".eco-import-tab");
+        if (!tab) return;
+        var source = tab.dataset.source;
+        if (!source) return;
+
+        // Update active tab
+        tabsContainer.querySelectorAll(".eco-import-tab").forEach(function (t) {
+          t.classList.toggle("active", t === tab);
+        });
+
+        _ecoImportSource = source;
+        hideImportPreview();
+        renderImportList();
+      });
+    }
+
+    // Confirm button
+    var confirmBtn = document.getElementById("eco-import-confirm-btn");
+    if (confirmBtn) confirmBtn.addEventListener("click", confirmImport);
+
+    // Back button
+    var backBtn = document.getElementById("eco-import-back-btn");
+    if (backBtn) backBtn.addEventListener("click", hideImportPreview);
+
+    // ESC key
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        var modal = document.getElementById("eco-import-modal");
+        if (modal && !modal.classList.contains("hidden")) {
+          var previewWrap = document.getElementById("eco-import-preview-wrap");
+          if (previewWrap && !previewWrap.classList.contains("hidden")) {
+            hideImportPreview();
+          } else {
+            closeEcoImportModal();
+          }
+        }
+      }
+    });
+  });
+
+  // Expose to global scope
+  window.openEcoImportModal = openEcoImportModal;
+  window.closeEcoImportModal = closeEcoImportModal;
+})();
+
+/* ============================================================
    COMMAND PALETTE (Ctrl+K)
    ============================================================ */
 
@@ -2860,6 +3492,11 @@ function debounceInsightsRefresh() {
         } catch { showToast("Could not open Bible Engine."); }
       }},
       { label: "Open in Writing Workspace", desc: "You are already here", group: "Ecosystem", run: () => { showToast("You are already in the Writing Workspace."); }},
+      // --- Import ---
+      { label: "Import from Ecosystem", desc: "Import study sessions, insights, or verses as outlines", group: "Import", run: () => {
+        if (typeof openEcoImportModal === "function") openEcoImportModal();
+        else showToast("Import feature not available.");
+      }},
       // --- Session ---
       { label: "Start Session", desc: "Start a new study session", group: "Session", run: () => {
         const active = getActiveSession();

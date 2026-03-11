@@ -1504,3 +1504,268 @@ input, select {
   font-family: inherit;
   background: var(--card-2, #fbfbfb);
 }
+
+/* ============================================
+   ECOSYSTEM IMPORT MODAL
+   ============================================ */
+
+.eco-import-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1200;
+}
+
+.eco-import-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1201;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.eco-import-card {
+  pointer-events: auto;
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 80px);
+  background: var(--eco-bg-secondary);
+  border: 1px solid var(--eco-border);
+  border-radius: var(--eco-radius-lg);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.eco-import-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid var(--eco-border);
+}
+
+.eco-import-header h3 {
+  font-size: 14px;
+  font-family: var(--eco-font-heading);
+  color: var(--eco-text-primary);
+  margin: 0;
+}
+
+/* Import tabs */
+
+.eco-import-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--eco-border);
+}
+
+.eco-import-tab {
+  padding: 8px 14px;
+  border: none;
+  background: transparent;
+  color: var(--eco-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.eco-import-tab:hover {
+  color: var(--eco-text-primary);
+}
+
+.eco-import-tab.active {
+  color: var(--eco-accent);
+  border-bottom-color: var(--eco-accent);
+}
+
+/* Item list */
+
+.eco-import-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 360px;
+  min-height: 100px;
+}
+
+.eco-import-empty {
+  text-align: center;
+  padding: 24px 12px;
+  font-size: 11px;
+}
+
+/* Session/Insight cards */
+
+.eco-import-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--eco-border);
+  border-radius: var(--eco-radius-md);
+  background: var(--eco-bg-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+  color: var(--eco-text-primary);
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.eco-import-item:hover {
+  border-color: var(--eco-accent);
+  background: rgba(201, 152, 58, 0.06);
+}
+
+.eco-import-item-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--eco-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eco-import-item-desc {
+  font-size: 10px;
+  color: var(--eco-text-secondary);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eco-import-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 9px;
+  color: var(--eco-text-secondary);
+  flex-wrap: wrap;
+}
+
+.eco-import-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(201, 152, 58, 0.15);
+  color: var(--eco-accent);
+}
+
+/* Verse selection items */
+
+.eco-import-verses-header {
+  padding: 4px 0 2px;
+}
+
+.eco-import-verse-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--eco-border);
+  border-radius: var(--eco-radius-sm);
+  background: var(--eco-bg-primary);
+  cursor: pointer;
+  transition: border-color 0.15s;
+  font-size: 11px;
+  color: var(--eco-text-primary);
+}
+
+.eco-import-verse-item:hover {
+  border-color: var(--eco-accent);
+}
+
+.eco-import-verse-item input[type="checkbox"] {
+  margin-top: 2px;
+  accent-color: var(--eco-accent);
+  flex-shrink: 0;
+}
+
+.eco-import-verse-label {
+  flex: 1;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--eco-text-primary);
+}
+
+.eco-import-verse-label strong {
+  color: var(--eco-accent);
+  font-size: 11px;
+}
+
+.eco-import-verses-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 0 4px;
+}
+
+/* Preview area */
+
+.eco-import-preview-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0 16px 12px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.eco-import-preview-wrap h4 {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--eco-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 8px 0 6px;
+}
+
+.eco-import-preview {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--eco-border);
+  border-radius: var(--eco-radius-md);
+  background: var(--eco-bg-tertiary);
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--eco-text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--eco-font-body);
+  max-height: 320px;
+  min-height: 120px;
+}
+
+.eco-import-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+.eco-import-actions .primary-btn {
+  padding: 5px 16px;
+  font-size: 11px;
+}
+
+.eco-import-actions .ghost-btn {
+  padding: 5px 12px;
+  font-size: 11px;
+}

@@ -32,6 +32,7 @@
             <div class="dropdown-divider"></div>
             <button data-action="copy">Copy Writing + Notes</button>
             <button data-action="import">Import .txt</button>
+            <button data-action="import-ecosystem">Import from Ecosystem</button>
             <button data-action="export">Export .txt</button>
             <button data-action="bulk-export">Bulk Export</button>
             <button data-action="print">Print</button>
@@ -296,6 +297,39 @@
   <div id="command-palette" class="cmd-palette hidden" role="dialog" aria-label="Command palette">
     <input id="cmd-palette-input" type="text" class="cmd-palette-input" placeholder="Search verses, actions..." />
     <div id="cmd-palette-list" class="cmd-palette-list"></div>
+  </div>
+
+  <!-- Ecosystem Import Modal -->
+  <div id="eco-import-backdrop" class="eco-import-backdrop hidden"></div>
+  <div id="eco-import-modal" class="eco-import-modal hidden" role="dialog" aria-label="Import from Ecosystem">
+    <div class="eco-import-card">
+      <div class="eco-import-header">
+        <h3 id="eco-import-title">Import from Ecosystem</h3>
+        <button id="eco-import-close-btn" class="icon-btn" type="button" title="Close">&times;</button>
+      </div>
+
+      <!-- Source selection tabs -->
+      <div class="eco-import-tabs" id="eco-import-tabs">
+        <button class="eco-import-tab active" data-source="sessions">Sessions</button>
+        <button class="eco-import-tab" data-source="insights">Insights</button>
+        <button class="eco-import-tab" data-source="verses">Recent Verses</button>
+      </div>
+
+      <!-- Item list -->
+      <div class="eco-import-list" id="eco-import-list">
+        <p class="muted eco-import-empty">Loading ecosystem data...</p>
+      </div>
+
+      <!-- Preview area -->
+      <div class="eco-import-preview-wrap hidden" id="eco-import-preview-wrap">
+        <h4>Preview</h4>
+        <div class="eco-import-preview" id="eco-import-preview"></div>
+        <div class="eco-import-actions">
+          <button class="primary-btn" id="eco-import-confirm-btn" type="button">Create Document</button>
+          <button class="ghost-btn" id="eco-import-back-btn" type="button">Back</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="main.js"></script>
